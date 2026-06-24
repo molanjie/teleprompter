@@ -65,6 +65,9 @@ async def ws_handler(websocket):
             elif data.get("type") == "state" and current_room:
                 await _broadcast(current_room, data, exclude=websocket)
 
+            elif data.get("type") == "sync" and current_room:
+                await _broadcast(current_room, data, exclude=websocket)
+
     except Exception as e:
         print(f"[WS] connection error: {type(e).__name__}: {e}")
     finally:
