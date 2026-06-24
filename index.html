@@ -1279,20 +1279,30 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         });
     }
 
+    function isPublicDeploy() {
+        var h = location.hostname;
+        return h !== 'localhost' && h !== '127.0.0.1' && !h.startsWith('192.168.') && !h.startsWith('10.') && !h.startsWith('172.');
+    }
+
     function openQROverlay() {
         if (!state.roomCode) {
             state.roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
         }
-        getLocalIP().then(function(lanIP) {
-            var remoteUrl = 'http://' + lanIP + ':8888/teleprompter.html?remote=1&room=' + state.roomCode;
-            qrRoomCode.textContent = '房间码: ' + state.roomCode;
-            qrStatus.textContent = '正在连接...';
-            qrOverlay.classList.remove('hidden');
-            drawQR(qrCanvas, remoteUrl);
-        });
+        qrRoomCode.textContent = '房间码: ' + state.roomCode;
+        qrStatus.textContent = '正在连接...';
+        qrOverlay.classList.remove('hidden');
 
-        // 主控端 WebSocket 始终用 localhost（同机）
-        connectWS(location.hostname, state.roomCode);
+        if (isPublicDeploy()) {
+            var remoteUrl = location.origin + location.pathname + '?remote=1&room=' + state.roomCode;
+            drawQR(qrCanvas, remoteUrl);
+            connectWSPublic(state.roomCode);
+        } else {
+            getLocalIP().then(function(lanIP) {
+                var remoteUrl = 'http://' + lanIP + ':8888/teleprompter.html?remote=1&room=' + state.roomCode;
+                drawQR(qrCanvas, remoteUrl);
+            });
+            connectWS(location.hostname, state.roomCode);
+        }
     }
 
     function connectWS(host, room) {
@@ -1316,6 +1326,37 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             };
             ws.onerror = function() {
                 qrStatus.textContent = '连接失败';
+            };
+            ws.onclose = function() {
+                if (!qrOverlay.classList.contains('hidden')) {
+                    qrStatus.textContent = '连接已断开';
+                }
+                state.ws = null;
+            };
+        } catch (e) {
+            qrStatus.textContent = '连接失败';
+        }
+    }
+
+    function connectWSPublic(room) {
+        closeWS();
+        try {
+            var wsUrl = 'wss://free.blr2.piesocket.com/v3/teleprompter-' + room + '?api_key=VCXCEuvhGcBDP7XhiJJUDvR1e1D4eiVjgZ9VRiaV&notify_self=1';
+            var ws = new WebSocket(wsUrl);
+            state.ws = ws;
+            ws.onopen = function() {
+                qrStatus.textContent = '已就绪，扫码连接';
+            };
+            ws.onmessage = function(e) {
+                try {
+                    var data = JSON.parse(e.data);
+                    if (data.type === 'cmd') {
+                        execRemoteCmd(data.action);
+                    }
+                } catch (ex) {}
+            };
+            ws.onerror = function() {
+                qrStatus.textContent = '中继连接失败';
             };
             ws.onclose = function() {
                 if (!qrOverlay.classList.contains('hidden')) {
@@ -1376,10 +1417,18 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 
             remoteStatus.textContent = '正在连接房间 ' + room + ' ...';
             try {
-                var ws = new WebSocket('ws://' + host + ':8889');
+                var wsUrl;
+                if (isPublicDeploy()) {
+                    wsUrl = 'wss://free.blr2.piesocket.com/v3/teleprompter-' + room + '?api_key=VCXCEuvhGcBDP7XhiJJUDvR1e1D4eiVjgZ9VRiaV&notify_self=1';
+                } else {
+                    wsUrl = 'ws://' + host + ':8889';
+                }
+                var ws = new WebSocket(wsUrl);
                 state.ws = ws;
                 ws.onopen = function() {
-                    ws.send(JSON.stringify({ type: 'join', room: room }));
+                    if (!isPublicDeploy()) {
+                        ws.send(JSON.stringify({ type: 'join', room: room }));
+                    }
                     remoteStatus.textContent = '已连接到房间 ' + room;
                 };
                 ws.onmessage = function(e) {
@@ -1394,13 +1443,13 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                     } catch (ex) {}
                 };
                 ws.onerror = function() {
-                    remoteStatus.textContent = '连接失败 - 请先在电脑上运行 serve.py';
+                    remoteStatus.textContent = '连接失败';
                 };
                 ws.onclose = function() {
                     remoteStatus.textContent = '连接已断开';
                 };
             } catch (e) {
-                remoteStatus.textContent = '连接失败 - 请先在电脑上运行 serve.py';
+                remoteStatus.textContent = '连接失败';
             }
             return true;
         }
