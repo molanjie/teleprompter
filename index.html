@@ -305,25 +305,50 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 }
 .remote-header h2 { font-size: 18px; font-weight: 600; color: var(--accent); }
 .remote-header .remote-status { font-size: 12px; color: var(--text-dim); }
-.remote-text-area {
+.remote-text-viewport {
     flex: 1; min-height: 0;
     margin: 4px 0;
-    padding: 14px 14px;
-    background: var(--bg-card); border-radius: 12px;
-    overflow-y: auto;
+    position: relative; overflow: hidden;
+    background: var(--bg);
+    border-radius: 12px;
     border: 1px solid var(--border);
-    -webkit-overflow-scrolling: touch;
 }
+.remote-text-area {
+    position: absolute; left: 8px; right: 8px; top: 50%;
+    transform: translateY(-50%);
+    max-height: 100%;
+    overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; -ms-overflow-style: none;
+}
+.remote-text-area::-webkit-scrollbar { display: none; }
 .remote-text-line {
-    font-size: 15px; line-height: 2.2; color: var(--text-dim);
-    padding: 2px 0; border-radius: 4px;
+    font-size: 22px; line-height: 1.7;
+    color: var(--text-dim); padding: 2px 8px;
     white-space: pre-wrap; word-break: break-word;
+    transition: color 0.3s, font-size 0.3s;
 }
 .remote-text-line.remote-text-current {
-    color: #fff; font-weight: 600;
-    background: rgba(88,166,255,0.15); padding: 4px 8px;
-    font-size: 16px; border-radius: 6px;
+    color: #fff; font-weight: 700;
+    font-size: 26px;
+    background: linear-gradient(90deg, rgba(88,166,255,0.12), rgba(88,166,255,0.04));
+    border-left: 3px solid var(--accent);
+    padding-left: 8px;
+    border-radius: 0 4px 4px 0;
 }
+/* 手机端引导线 */
+.remote-guide-line {
+    position: absolute; left: 8px; right: 8px; top: 50%;
+    height: 2px; background: var(--accent); opacity: 0.3;
+    pointer-events: none; z-index: 2;
+}
+/* 手机端边缘遮罩 */
+.remote-edge-top, .remote-edge-bottom {
+    position: absolute; left: 0; right: 0; height: 18%;
+    pointer-events: none; z-index: 3;
+}
+.remote-edge-top { top: 0; background: linear-gradient(to bottom, var(--bg) 0%, transparent 100%); }
+.remote-edge-bottom { bottom: 0; background: linear-gradient(to top, var(--bg) 0%, transparent 100%); }
 .remote-controls {
     flex-shrink: 0; display: flex; flex-direction: column;
     gap: 10px; padding-top: 8px;
@@ -558,8 +583,13 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         <h2>提词器遥控</h2>
         <div class="remote-status" id="remoteStatus">已连接</div>
     </div>
-    <div class="remote-text-area" id="remoteTextArea">
-        <div class="remote-text-line remote-text-current" id="remoteTextLine">等待同步...</div>
+    <div class="remote-text-viewport" id="remoteViewport">
+        <div class="remote-text-area" id="remoteTextArea">
+            <div class="remote-text-line remote-text-current">等待同步...</div>
+        </div>
+        <div class="remote-guide-line"></div>
+        <div class="remote-edge-top"></div>
+        <div class="remote-edge-bottom"></div>
     </div>
     <div class="remote-controls">
         <div class="remote-row">
