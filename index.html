@@ -1499,9 +1499,17 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             vp.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
 
             document.body.innerHTML = '';
-            document.body.style.cssText = 'background:var(--bg);display:flex;align-items:center;justify-content:center;min-height:100vh;';
+            document.body.style.cssText = 'background:var(--bg);display:flex;align-items:center;justify-content:center;min-height:100vh;touch-action:manipulation;-webkit-user-select:none;user-select:none;';
             remotePanel.classList.remove('hidden');
             document.body.appendChild(remotePanel);
+
+            // 阻止双击缩放
+            var lastTouchEnd = 0;
+            document.addEventListener('touchend', function(e) {
+                var now = Date.now();
+                if (now - lastTouchEnd <= 300) { e.preventDefault(); }
+                lastTouchEnd = now;
+            }, { passive: false });
 
             if (!room) {
                 remoteStatus.textContent = '缺少房间码';
