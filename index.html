@@ -71,8 +71,14 @@ body {
 .toolbar-group:last-child { border-right: none; }
 
 .toolbar label {
-    font-size: 11px; color: var(--text-dim); white-space: nowrap; font-weight: 500;
+    font-size: 11.5px; color: var(--text-dim); white-space: nowrap; font-weight: 500;
     letter-spacing: 0.3px;
+}
+
+.slider-val {
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    min-width: 36px; text-align: center; font-variant-numeric: tabular-nums;
+    letter-spacing: 0.2px;
 }
 
 .btn {
@@ -111,22 +117,31 @@ select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,25
 select:hover { border-color: rgba(88,166,255,0.5); }
 
 input[type="range"] {
-    -webkit-appearance: none; width: 80px; height: 6px;
-    border-radius: 3px; background: var(--slider-bg); outline: none; cursor: pointer;
-    transition: opacity var(--transition);
+    -webkit-appearance: none; width: 80px; height: 7px;
+    border-radius: 4px; outline: none; cursor: pointer;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--slider-fill, 50%), var(--slider-bg) var(--slider-fill, 50%));
+    transition: box-shadow var(--transition);
 }
-input[type="range"]:hover { opacity: 0.9; }
+input[type="range"]:hover {
+    box-shadow: 0 0 10px rgba(88,166,255,0.12);
+}
 input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
-    background: var(--accent); cursor: pointer; border: 2px solid var(--bg);
-    box-shadow: 0 2px 8px rgba(88,166,255,0.3);
+    -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%;
+    background: linear-gradient(135deg, #79c0ff 0%, var(--accent) 100%);
+    cursor: pointer; border: 2.5px solid var(--bg);
+    box-shadow: 0 2px 10px rgba(88,166,255,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
     transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
+input[type="range"]::-webkit-slider-thumb:hover {
+    box-shadow: 0 4px 18px rgba(88,166,255,0.5), 0 0 0 4px rgba(88,166,255,0.08), inset 0 1px 0 rgba(255,255,255,0.2);
+    transform: scale(1.05);
+}
 input[type="range"]::-webkit-slider-thumb:active {
-    box-shadow: 0 0 16px rgba(88,166,255,0.5); transform: scale(1.1);
+    box-shadow: 0 0 22px rgba(88,166,255,0.6), 0 0 0 8px rgba(88,166,255,0.12), inset 0 1px 0 rgba(255,255,255,0.2);
+    transform: scale(1.12);
 }
 input[type="range"]::-webkit-slider-runnable-track {
-    height: 6px; border-radius: 3px; background: var(--slider-bg);
+    height: 7px; border-radius: 4px; background: transparent;
 }
 
 input[type="color"] {
@@ -744,25 +759,25 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     <div class="toolbar-group">
         <label>速度</label>
         <input type="range" id="speedSlider" min="0.5" max="3.0" step="0.1" value="1" oninput="updateSpeed()" title="滚动速度倍率">
-        <span id="speedLabel" style="font-size:12px;color:var(--text);min-width:36px;text-align:center;">1.0x</span>
+        <span id="speedLabel" class="slider-val">1.0x</span>
     </div>
 
     <div class="toolbar-group">
         <label>字号</label>
         <input type="range" id="fontSizeSlider" min="20" max="100" value="40" oninput="updateFontSize()" title="字体大小">
-        <span id="fontSizeLabel" style="font-size:12px;color:var(--text);min-width:28px;">40</span>
+        <span id="fontSizeLabel" class="slider-val">40</span>
     </div>
 
     <div class="toolbar-group">
         <label>字距</label>
         <input type="range" id="letterSpacingSlider" min="0" max="20" step="0.5" value="0" oninput="updateLetterSpacing()" title="字间距">
-        <span id="letterSpacingLabel" style="font-size:12px;color:var(--text);min-width:28px;">0</span>
+        <span id="letterSpacingLabel" class="slider-val">0</span>
     </div>
 
     <div class="toolbar-group">
         <label>行距</label>
         <input type="range" id="lineHeightSlider" min="1.0" max="3.0" step="0.1" value="1.6" oninput="updateLineHeight()" title="行间距">
-        <span id="lineHeightLabel" style="font-size:12px;color:var(--text);min-width:28px;">1.6</span>
+        <span id="lineHeightLabel" class="slider-val">1.6</span>
     </div>
 
     <div class="toolbar-group">
@@ -1098,6 +1113,15 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     // ========== 速度计算 ==========
     function getSpeedPx() {
         return state.baseSpeed * state.speedMultiplier;
+    }
+
+    // ========== 滑块进度条填充 ==========
+    function updateSliderFill(slider) {
+        if (!slider) return;
+        var min = parseFloat(slider.min) || 0;
+        var max = parseFloat(slider.max) || 100;
+        var pct = ((parseFloat(slider.value) - min) / (max - min)) * 100;
+        slider.style.setProperty('--slider-fill', pct.toFixed(1) + '%');
     }
 
     function updateSpeedDisplay() {
@@ -1905,6 +1929,11 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         lineHeightSlider.value = state.lineHeight;
         lineHeightLabel.textContent = state.lineHeight.toFixed(1);
 
+        updateSliderFill(speedSlider);
+        updateSliderFill(fontSizeSlider);
+        updateSliderFill(letterSpacingSlider);
+        updateSliderFill(lineHeightSlider);
+
         fontSelector.value = state.fontFamily || '';
         if (state.fontFamily) {
             document.body.style.setProperty('--tp-font', state.fontFamily || '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif');
@@ -2110,6 +2139,10 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         letterSpacingLabel.textContent = defaults.letterSpacing;
         lineHeightSlider.value = defaults.lineHeight;
         lineHeightLabel.textContent = defaults.lineHeight.toFixed(1);
+        updateSliderFill(speedSlider);
+        updateSliderFill(fontSizeSlider);
+        updateSliderFill(letterSpacingSlider);
+        updateSliderFill(lineHeightSlider);
         teleText.style.setProperty('--letter-spacing', defaults.letterSpacing + 'px');
         teleText.style.setProperty('--line-height', defaults.lineHeight);
 
@@ -2373,6 +2406,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     // ========== 速度 / 字号 / 颜色 / 字距 / 行距 ==========
     function updateSpeed() {
         state.speedMultiplier = parseFloat(speedSlider.value);
+        updateSliderFill(speedSlider);
         updateSpeedDisplay();
         saveSettings();
         statusText.textContent = state.isPlaying
@@ -2385,6 +2419,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 
     function updateFontSize() {
         state.fontSize = parseInt(fontSizeSlider.value);
+        updateSliderFill(fontSizeSlider);
         fontSizeLabel.textContent = state.fontSize;
         teleText.style.fontSize = state.fontSize + 'px';
         saveSettings();
@@ -2407,6 +2442,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 
     function updateLetterSpacing() {
         state.letterSpacing = parseFloat(letterSpacingSlider.value);
+        updateSliderFill(letterSpacingSlider);
         letterSpacingLabel.textContent = state.letterSpacing;
         teleText.style.setProperty('--letter-spacing', state.letterSpacing + 'px');
         saveSettings();
@@ -2415,6 +2451,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 
     function updateLineHeight() {
         state.lineHeight = parseFloat(lineHeightSlider.value);
+        updateSliderFill(lineHeightSlider);
         lineHeightLabel.textContent = state.lineHeight.toFixed(1);
         teleText.style.setProperty('--line-height', state.lineHeight);
         saveSettings();
