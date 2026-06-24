@@ -1,0 +1,2820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>全功能提词器</title>
+<script src="https://cdn.jsdelivr.net/npm/@lichess-org/vosk-browser@latest/dist/vosk-browser.js"></script>
+<style>
+:root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --accent-hover: #79c0ff;
+    --border: #30363d;
+    --scrollbar-bg: transparent;
+    --scrollbar-thumb: #30363d;
+    --slider-bg: #21262d;
+    --danger: #f85149;
+    --danger-hover: #ff6b6b;
+    --success: #3fb950;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --font-base: 40px;
+    --transition: 0.2s ease;
+    --toolbar-height: 56px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+    font-family: var(--tp-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    user-select: none; -webkit-user-select: none;
+}
+
+/* ===== 工具栏 ===== */
+.toolbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(22,27,34,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    z-index: 15;
+    flex-wrap: wrap;
+    transform: translateY(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+}
+.toolbar.visible { transform: translateY(0); }
+
+.toolbar-group {
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 6px; border-right: 1px solid var(--border);
+}
+.toolbar-group:last-child { border-right: none; }
+
+.toolbar label {
+    font-size: 11px; color: var(--text-dim); white-space: nowrap; font-weight: 500;
+}
+
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    padding: 6px 12px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: rgba(33,38,45,0.7); color: var(--text);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all var(--transition); white-space: nowrap;
+    min-height: 34px; min-width: 40px;
+}
+.btn:active { transform: scale(0.95); opacity: 0.8; }
+.btn:hover { border-color: var(--accent); background: #1f2937; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 10px rgba(88,166,255,0.3); }
+.btn.danger { border-color: var(--danger); color: var(--danger); }
+
+select {
+    background: var(--slider-bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: none; cursor: pointer;
+    max-width: 140px;
+}
+select:focus { border-color: var(--accent); }
+
+input[type="range"] {
+    -webkit-appearance: none; width: 80px; height: 5px;
+    border-radius: 3px; background: var(--slider-bg); outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); cursor: pointer; border: 2px solid var(--bg);
+}
+
+input[type="color"] {
+    -webkit-appearance: none; width: 28px; height: 24px;
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: transparent; padding: 1px;
+}
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+
+/* ===== 主舞台 ===== */
+.main-stage {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    position: relative; min-height: 0;
+}
+
+.teleprompter-viewport {
+    flex: 1; overflow: hidden; position: relative; background: var(--bg);
+    touch-action: none; -webkit-overflow-scrolling: auto;
+}
+
+.teleprompter-text {
+    position: absolute; left: 5%; right: 5%; top: 50%;
+    transform: translateY(-50%) translateZ(0);
+    font-size: var(--font-base); line-height: var(--line-height, 1.6); color: var(--text);
+    text-align: left; white-space: pre-wrap; word-wrap: break-word;
+    letter-spacing: var(--letter-spacing, 0px);
+    pointer-events: none;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+.teleprompter-text.mirrored { transform: translateY(-50%) scaleX(-1) translateZ(0); }
+
+/* 引导线 */
+.guide-line {
+    position: absolute; left: 0; right: 0; top: 50%;
+    height: 2px; background: var(--accent); opacity: 0.25;
+    pointer-events: none; z-index: 2;
+}
+
+/* 边缘遮罩 */
+.edge-mask-top, .edge-mask-bottom {
+    position: absolute; left: 0; right: 0; height: 15%;
+    pointer-events: none; z-index: 6;
+    transition: opacity 0.3s ease;
+}
+.edge-mask-top { top: 0; }
+.edge-mask-bottom { bottom: 0; }
+.edge-mask-top.mask-off, .edge-mask-bottom.mask-off { opacity: 0; }
+
+/* ===== 全屏模式 ===== */
+body.fullscreen .toolbar { padding-top: 24px; }
+
+/* ===== 书签标记 ===== */
+.bookmark-indicator {
+    position: absolute; left: 0; right: 0; height: 3px;
+    background: var(--success); opacity: 0.7; z-index: 3;
+    pointer-events: none;
+    transition: opacity 0.15s;
+}
+
+/* ===== 倒计时覆盖层 ===== */
+.countdown-overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,0.85); display: flex;
+    align-items: center; justify-content: center;
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.countdown-overlay.active { opacity: 1; pointer-events: all; }
+.countdown-number {
+    font-size: 140px; font-weight: 700; color: #fff;
+    text-shadow: 0 0 60px rgba(88,166,255,0.6);
+    animation: count-pop 0.35s ease-out;
+}
+@keyframes count-pop {
+    0% { transform: scale(1.6); opacity: 0; }
+    60% { transform: scale(0.95); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* ===== 编辑面板 ===== */
+.editor-panel {
+    position: absolute; inset: 0; background: var(--surface);
+    display: flex; flex-direction: column; z-index: 20;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+.editor-panel.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.editor-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    flex-wrap: wrap; gap: 8px;
+}
+.editor-header h3 { font-size: 16px; font-weight: 600; }
+
+.editor-body {
+    flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 0;
+}
+
+textarea {
+    flex: 1; width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text); font-size: 15px; font-family: inherit;
+    line-height: 1.7; padding: 14px; resize: none; outline: none;
+    transition: border-color var(--transition);
+}
+textarea:focus { border-color: var(--accent); }
+textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
+
+/* ===== 进度条 ===== */
+.progress-bar-wrap {
+    height: 3px; background: var(--slider-bg); flex-shrink: 0; position: relative; z-index: 5;
+}
+.progress-bar-fill {
+    height: 100%; background: var(--accent);
+    transition: width 0.08s linear; border-radius: 0 2px 2px 0;
+}
+
+/* ===== 底部状态栏 ===== */
+.status-bar {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding: 4px 12px; background: rgba(22,27,34,0.85); border-top: 1px solid var(--border);
+    flex-shrink: 0; font-size: 11px; color: var(--text-dim);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+
+/* ===== 快捷提示 ===== */
+.shortcuts-hint {
+    position: fixed; bottom: 16px; right: 16px;
+    background: rgba(22,27,34,0.9); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 10px 14px; font-size: 11px; color: var(--text-dim); z-index: 30;
+    line-height: 1.8; pointer-events: none; max-width: 240px;
+    transition: opacity 0.8s ease;
+}
+.shortcuts-hint kbd {
+    display: inline-block; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 3px; padding: 1px 5px; font-size: 10px; font-family: inherit;
+    color: var(--text); margin: 0 1px;
+}
+
+/* ===== 对话框覆盖层 ===== */
+.dialog-overlay {
+    position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+}
+.dialog-overlay.hidden { display: none; }
+.dialog-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px; max-width: 380px; width: 90%;
+}
+.dialog-box h3 { font-size: 16px; margin-bottom: 10px; }
+.dialog-box p { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; line-height: 1.6; }
+.dialog-box .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ===== QR 码浮层 ===== */
+.qr-overlay {
+    position: fixed; inset: 0; z-index: 55; background: rgba(0,0,0,0.8);
+    display: flex; align-items: center; justify-content: center;
+}
+.qr-overlay.hidden { display: none; }
+.qr-dialog {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; text-align: center; max-width: 320px; width: 90%;
+}
+.qr-dialog h3 { font-size: 16px; margin-bottom: 8px; }
+.qr-dialog p { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; }
+.qr-dialog canvas { display: block; margin: 0 auto; background: #fff; padding: 8px; border-radius: 8px; }
+
+/* ===== 遥控面板（手机端） ===== */
+.remote-panel {
+    position: fixed; inset: 0; z-index: 70; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 20px; gap: 20px;
+}
+.remote-panel.hidden { display: none; }
+.remote-panel h2 { font-size: 22px; font-weight: 600; color: var(--accent); }
+.remote-panel .remote-status { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
+.remote-panel .remote-btn {
+    width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 28px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.remote-panel .remote-btn:active { transform: scale(0.9); background: var(--accent); }
+.remote-panel .remote-row { display: flex; gap: 16px; align-items: center; }
+.remote-panel .remote-speed-label { font-size: 14px; color: var(--text); min-width: 50px; text-align: center; }
+
+/* ===== 横屏/竖屏适配 ===== */
+@media (orientation: landscape) {
+    :root { --font-base: 36px; }
+    .teleprompter-text { left: 8%; right: 8%; }
+    .toolbar { padding: 6px 10px; gap: 4px; }
+    .btn { padding: 5px 10px; min-height: 30px; font-size: 12px; }
+    input[type="range"] { width: 70px; }
+    .btn .btn-label { font-size: 11px; }
+}
+
+@media (orientation: portrait) {
+    :root { --font-base: 38px; }
+}
+
+/* 小屏手机 */
+@media (max-width: 480px) {
+    :root { --font-base: 28px; }
+    .btn { padding: 5px 8px; min-height: 30px; font-size: 11px; min-width: 32px; }
+    .btn .btn-label { display: none; }
+    input[type="range"] { width: 48px; }
+    .toolbar label { font-size: 10px; }
+    .toolbar-group { padding: 0 3px; }
+    select { max-width: 100px; font-size: 10px; }
+}
+
+/* 大屏 */
+@media (min-width: 1200px) {
+    :root { --font-base: 48px; }
+    .teleprompter-text { left: 10%; right: 10%; }
+}
+
+/* ===== 摄像头预览小窗 ===== */
+.camera-pip {
+    position: absolute; z-index: 18;
+    width: 160px; min-width: 100px; max-width: 350px;
+    aspect-ratio: 4/3; border-radius: var(--radius);
+    overflow: hidden; cursor: grab;
+    background: #000; border: 2px solid rgba(255,255,255,0.15);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    opacity: 0.5; transition: opacity 0.25s ease, border-color 0.25s ease;
+    touch-action: none; will-change: left, top;
+}
+.camera-pip:hover,
+.camera-pip.dragging { opacity: 0.92; border-color: var(--accent); cursor: grabbing; }
+.camera-pip.hidden { display: none; }
+
+.camera-pip video {
+    width: 100%; height: 100%; object-fit: cover;
+    transform: scaleX(-1);
+    pointer-events: none;
+}
+
+.camera-pip .cam-controls {
+    position: absolute; inset: 0; display: flex;
+    align-items: flex-start; justify-content: flex-end; padding: 4px;
+    pointer-events: none; opacity: 0; transition: opacity 0.2s;
+}
+.camera-pip:hover .cam-controls,
+.camera-pip.dragging .cam-controls { opacity: 1; }
+
+.camera-pip .cam-btn {
+    pointer-events: all; width: 26px; height: 26px; border: none; border-radius: 50%;
+    background: rgba(0,0,0,0.55); color: #fff; font-size: 12px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    margin-left: 4px; backdrop-filter: blur(4px); transition: background 0.15s;
+}
+.camera-pip .cam-btn:active { background: rgba(0,0,0,0.8); transform: scale(0.9); }
+
+.camera-pip .cam-resize {
+    position: absolute; bottom: 0; right: 0;
+    width: 22px; height: 22px; cursor: nwse-resize;
+    pointer-events: all; opacity: 0; transition: opacity 0.2s;
+    background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.35) 50%);
+    border-radius: 0 0 var(--radius) 0;
+}
+.camera-pip:hover .cam-resize { opacity: 1; }
+
+.camera-pip .cam-drag-handle {
+    position: absolute; top: 0; left: 0; right: 30px; height: 28px;
+    pointer-events: all; cursor: grab;
+}
+
+/* 摄像头权限提示 */
+.cam-permission-overlay {
+    position: fixed; inset: 0; z-index: 55; background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+}
+.cam-permission-overlay.hidden { display: none; }
+
+.cam-permission-dialog {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px 24px; text-align: center;
+    max-width: 320px; width: 90%;
+}
+.cam-permission-dialog h3 { font-size: 18px; margin-bottom: 12px; }
+.cam-permission-dialog p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; }
+
+/* ===== 语音识别状态 ===== */
+.voice-status-dot {
+    position: fixed;
+    bottom: 32px; right: 16px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    z-index: 25;
+    pointer-events: none;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+}
+.voice-status-dot.active { opacity: 1; }
+.voice-status-dot.green  { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.voice-status-dot.yellow { background: #d29922;   box-shadow: 0 0 8px #d29922; }
+.voice-status-dot.red    { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+/* 识别文字状态栏 */
+.voice-recognize-bar {
+    position: fixed;
+    bottom: 50px; left: 50%; transform: translateX(-50%);
+    background: rgba(22,27,34,0.88);
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+    max-width: 60vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 25;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+.voice-recognize-bar.active { opacity: 1; }
+
+/* 模型下载进度浮层 */
+.voice-download-overlay {
+    position: fixed; inset: 0; z-index: 65;
+    background: rgba(0,0,0,0.75);
+    display: flex; align-items: center; justify-content: center;
+}
+.voice-download-overlay.hidden { display: none; }
+.voice-download-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px 24px; text-align: center;
+    max-width: 360px; width: 90%;
+}
+.voice-download-box h3 { font-size: 16px; margin-bottom: 8px; }
+.voice-download-box p { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.6; }
+.voice-progress-wrap {
+    width: 100%; height: 8px; background: var(--slider-bg);
+    border-radius: 4px; overflow: hidden; margin-bottom: 12px;
+}
+.voice-progress-fill {
+    height: 100%; width: 0%; background: var(--accent);
+    border-radius: 4px; transition: width 0.3s ease;
+}
+.voice-download-actions { display: flex; gap: 10px; justify-content: center; margin-top: 8px; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ===== 倒计时覆盖层 ===== -->
+<div class="countdown-overlay" id="countdownOverlay">
+    <div class="countdown-number" id="countdownNumber"></div>
+</div>
+
+<!-- ===== 自动恢复对话框 ===== -->
+<div class="dialog-overlay hidden" id="autoRestoreDialog">
+    <div class="dialog-box">
+        <h3>检测到未保存内容</h3>
+        <p>上次关闭时检测到编辑区有内容，是否恢复到当前讲稿？</p>
+        <div class="dialog-actions">
+            <button class="btn" onclick="dismissAutoRestore()">忽略</button>
+            <button class="btn primary" onclick="confirmAutoRestore()">确认恢复</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 重命名对话框 ===== -->
+<div class="dialog-overlay hidden" id="renameDialog">
+    <div class="dialog-box">
+        <h3>重命名讲稿</h3>
+        <input type="text" id="renameInput" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;outline:none;margin-bottom:16px;" placeholder="输入新名称">
+        <div class="dialog-actions">
+            <button class="btn" onclick="closeRenameDialog()">取消</button>
+            <button class="btn primary" onclick="doRename()">确认</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 隐藏文件导入input ===== -->
+<input type="file" id="fileImportInput" accept=".txt,.md" style="display:none;" onchange="handleFileImport(event)">
+
+<!-- ===== QR 码浮层 ===== -->
+<div class="qr-overlay hidden" id="qrOverlay">
+    <div class="qr-dialog">
+        <h3>手机遥控</h3>
+        <p>扫描二维码或在手机上输入地址</p>
+        <canvas id="qrCanvas" width="200" height="200"></canvas>
+        <p id="qrRoomCode" style="margin-top:12px;font-size:16px;font-weight:bold;letter-spacing:2px;color:var(--text);"></p>
+        <p id="qrStatus" style="font-size:12px;color:var(--text-dim);">等待连接...</p>
+        <button class="btn primary" onclick="closeQROverlay()" style="margin-top:12px;">关闭</button>
+    </div>
+</div>
+
+<!-- ===== 手机遥控面板 ===== -->
+<div class="remote-panel hidden" id="remotePanel">
+    <h2>提词器遥控</h2>
+    <div class="remote-status" id="remoteStatus">已连接</div>
+    <div class="remote-row">
+        <button class="remote-btn" onclick="sendRemoteCmd('speedDown')">−</button>
+        <span class="remote-speed-label" id="remoteSpeed">1.0x</span>
+        <button class="remote-btn" onclick="sendRemoteCmd('speedUp')">+</button>
+    </div>
+    <div class="remote-row">
+        <button class="remote-btn" onclick="sendRemoteCmd('fontDown')" style="font-size:22px;">A−</button>
+        <button class="remote-btn" onclick="sendRemoteCmd('togglePlay')" style="font-size:36px;">▶</button>
+        <button class="remote-btn" onclick="sendRemoteCmd('fontUp')" style="font-size:22px;">A+</button>
+    </div>
+    <div class="remote-row">
+        <button class="remote-btn" onclick="sendRemoteCmd('prevLine')">▲</button>
+        <button class="remote-btn" onclick="sendRemoteCmd('reset')" style="font-size:18px;">↻</button>
+        <button class="remote-btn" onclick="sendRemoteCmd('nextLine')">▼</button>
+    </div>
+</div>
+
+<!-- ===== 工具栏 ===== -->
+<div class="toolbar visible" id="toolbar">
+    <div class="toolbar-group">
+        <button class="btn primary" id="btnPlay" onclick="togglePlay()" title="播放/暂停">
+            <span style="font-size:16px;line-height:1;">▶</span>
+            <span class="btn-label">播放</span>
+        </button>
+        <button class="btn" id="btnCountdown" onclick="startCountdown()" title="倒计时3秒后播放">
+            <span style="font-size:14px;line-height:1;">⏱</span>
+            <span class="btn-label">倒计时</span>
+        </button>
+        <button class="btn" id="btnVoice" onclick="toggleVoiceRecognition()" title="语音跟随滚动（离线）">
+            <span style="font-size:14px;line-height:1;">🎤</span>
+            <span class="btn-label">语音</span>
+        </button>
+        <button class="btn" id="btnBookmark" onclick="addBookmark()" title="在当前进度添加书签">
+            <span style="font-size:14px;line-height:1;">🔖</span>
+            <span class="btn-label">书签</span>
+        </button>
+    </div>
+
+    <div class="toolbar-group">
+        <label>讲稿</label>
+        <select id="scriptSelector" onchange="switchScript()" title="切换讲稿">
+            <option value="__current__">当前</option>
+        </select>
+        <button class="btn" onclick="newScript()" title="新建讲稿" style="min-width:28px;padding:6px 8px;">+</button>
+        <button class="btn" onclick="renameScript()" title="重命名" style="min-width:28px;padding:6px 8px;">✎</button>
+        <button class="btn" onclick="deleteScript()" title="删除" style="min-width:28px;padding:6px 8px;border-color:var(--danger);color:var(--danger);">✕</button>
+    </div>
+
+    <div class="toolbar-group">
+        <label>速度</label>
+        <input type="range" id="speedSlider" min="0.5" max="3.0" step="0.1" value="1" oninput="updateSpeed()" title="滚动速度倍率">
+        <span id="speedLabel" style="font-size:12px;color:var(--text);min-width:36px;text-align:center;">1.0x</span>
+    </div>
+
+    <div class="toolbar-group">
+        <label>字号</label>
+        <input type="range" id="fontSizeSlider" min="20" max="100" value="40" oninput="updateFontSize()" title="字体大小">
+        <span id="fontSizeLabel" style="font-size:12px;color:var(--text);min-width:28px;">40</span>
+    </div>
+
+    <div class="toolbar-group">
+        <label>字距</label>
+        <input type="range" id="letterSpacingSlider" min="0" max="20" step="0.5" value="0" oninput="updateLetterSpacing()" title="字间距">
+        <span id="letterSpacingLabel" style="font-size:12px;color:var(--text);min-width:28px;">0</span>
+    </div>
+
+    <div class="toolbar-group">
+        <label>行距</label>
+        <input type="range" id="lineHeightSlider" min="1.0" max="3.0" step="0.1" value="1.6" oninput="updateLineHeight()" title="行间距">
+        <span id="lineHeightLabel" style="font-size:12px;color:var(--text);min-width:28px;">1.6</span>
+    </div>
+
+    <div class="toolbar-group">
+        <label>字体</label>
+        <select id="fontSelector" onchange="updateFont()" title="字体选择">
+            <option value="">系统默认</option>
+            <option value='"Microsoft YaHei", "PingFang SC", sans-serif'>微软雅黑</option>
+            <option value='SimSun, "宋体", serif'>宋体</option>
+            <option value='SimHei, "黑体", sans-serif'>黑体</option>
+            <option value='KaiTi, "楷体", serif'>楷体</option>
+            <option value='serif'>衬线 (serif)</option>
+            <option value='monospace'>等宽 (monospace)</option>
+        </select>
+    </div>
+
+    <div class="toolbar-group">
+        <label>文字</label>
+        <input type="color" id="textColor" value="#e6edf3" onchange="updateColors()" title="文字颜色">
+    </div>
+
+    <div class="toolbar-group">
+        <label>背景</label>
+        <input type="color" id="bgColor" value="#0d1117" onchange="updateColors()" title="背景颜色">
+    </div>
+
+    <div class="toolbar-group">
+        <button class="btn" id="btnDirection" onclick="toggleDirection()" title="滚动方向">
+            <span style="font-size:13px;line-height:1;">↑</span>
+            <span class="btn-label">方向</span>
+        </button>
+        <button class="btn" id="btnMask" onclick="toggleMask()" title="边缘遮罩">
+            <span style="font-size:13px;line-height:1;">◧</span>
+            <span class="btn-label">遮罩</span>
+        </button>
+        <button class="btn" id="btnMirror" onclick="toggleMirror()" title="镜像模式">
+            <span style="font-size:13px;line-height:1;">⇔</span>
+            <span class="btn-label">镜像</span>
+        </button>
+        <button class="btn" id="btnCamera" onclick="toggleCamera()" title="摄像头预览">
+            <span style="font-size:13px;line-height:1;">🖵</span>
+            <span class="btn-label">摄像头</span>
+        </button>
+        <button class="btn" id="btnFullscreen" onclick="toggleFullscreen()" title="全屏模式">
+            <span style="font-size:13px;line-height:1;">⛶</span>
+            <span class="btn-label">全屏</span>
+        </button>
+        <button class="btn" id="btnRemote" onclick="openQROverlay()" title="手机遥控">
+            <span style="font-size:13px;line-height:1;">📱</span>
+            <span class="btn-label">遥控</span>
+        </button>
+    </div>
+
+    <div class="toolbar-group">
+        <button class="btn" id="btnImport" onclick="triggerImport()" title="导入文本">
+            <span style="font-size:12px;line-height:1;">📥</span>
+            <span class="btn-label">导入</span>
+        </button>
+        <button class="btn" id="btnExport" onclick="exportText()" title="导出文本">
+            <span style="font-size:12px;line-height:1;">📤</span>
+            <span class="btn-label">导出</span>
+        </button>
+        <button class="btn" id="btnEdit" onclick="toggleEditor()" title="编辑文本">
+            <span style="font-size:14px;line-height:1;">✎</span>
+            <span class="btn-label">文本</span>
+        </button>
+        <button class="btn danger" id="btnReset" onclick="confirmReset()" title="重置所有参数">
+            <span style="font-size:13px;line-height:1;">↻</span>
+            <span class="btn-label">重置</span>
+        </button>
+    </div>
+</div>
+
+<!-- 主提词区域 -->
+<div class="main-stage">
+    <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+    </div>
+
+    <div class="teleprompter-viewport" id="viewport">
+        <div class="guide-line"></div>
+        <div id="bookmarkLayer" style="position:absolute;inset:0;pointer-events:none;z-index:3;"></div>
+        <div class="edge-mask-top" id="edgeMaskTop"></div>
+        <div class="edge-mask-bottom" id="edgeMaskBottom"></div>
+        <div class="teleprompter-text" id="teleprompterText">
+欢迎使用全功能提词器
+
+点击屏幕中央唤出工具栏，粘贴你的讲稿。
+
+触屏手势：
+  单指上下滑动 — 手动滚动
+  双指捏合 — 缩放字号
+  双击 — 切换全屏
+
+快捷键：
+  Space 播放/暂停  ↑↓ 调速
+  F 镜像  Esc 编辑  R 重置
+  Ctrl+S 导出  Ctrl+O 导入  Ctrl+D 方向
+
+祝你录制顺利！
+        </div>
+    </div>
+
+    <!-- 摄像头预览 PIP -->
+    <div class="camera-pip hidden" id="cameraPip">
+        <div class="cam-drag-handle" id="camDragHandle"></div>
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <div class="cam-controls">
+            <button class="cam-btn" id="camBtnSwitch" onclick="switchCamera()" title="切换摄像头">⇄</button>
+            <button class="cam-btn" id="camBtnClose" onclick="toggleCamera()" title="关闭摄像头">✕</button>
+        </div>
+        <div class="cam-resize" id="camResizeHandle"></div>
+    </div>
+
+    <!-- 摄像头权限提示 -->
+    <div class="cam-permission-overlay hidden" id="camPermOverlay">
+        <div class="cam-permission-dialog">
+            <h3>摄像头权限</h3>
+            <p>提词器需要使用前置摄像头来进行录制预览。摄像头画面仅在你设备本地显示，不会上传或存储。</p>
+            <div style="display:flex;gap:10px;justify-content:center;">
+                <button class="btn" onclick="denyCamera()">暂不使用</button>
+                <button class="btn primary" onclick="requestCamera()">允许使用</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 语音模型下载进度浮层 -->
+    <div class="voice-download-overlay hidden" id="voiceDownloadOverlay">
+        <div class="voice-download-box">
+            <h3>下载中文语音模型</h3>
+            <p id="voiceDownloadMsg">正在从 CDN 下载语音模型（约 42MB），仅首次需要。后续将缓存到本地，秒开。</p>
+            <div class="voice-progress-wrap">
+                <div class="voice-progress-fill" id="voiceProgressFill"></div>
+            </div>
+            <p id="voiceProgressPercent" style="font-size:14px;color:var(--accent);">0%</p>
+            <div class="voice-download-actions">
+                <button class="btn" id="voiceCancelBtn" onclick="cancelVoiceDownload()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 语音状态指示点 -->
+    <div class="voice-status-dot" id="voiceStatusDot"></div>
+
+    <!-- 识别文字状态栏 -->
+    <div class="voice-recognize-bar" id="voiceRecognizeBar"></div>
+
+    <!-- 书签管理面板 -->
+    <div class="editor-panel hidden" id="bookmarkPanel">
+        <div class="editor-header">
+            <h3>书签管理</h3>
+            <button class="btn primary" onclick="closeBookmarkPanel()">关闭</button>
+        </div>
+        <div class="editor-body" id="bookmarkList" style="overflow-y:auto;">
+            <p style="color:var(--text-dim);text-align:center;padding:40px;">暂无书签<br>播放时点击「书签」按钮添加</p>
+        </div>
+    </div>
+
+    <!-- 文本编辑面板 -->
+    <div class="editor-panel hidden" id="editorPanel">
+        <div class="editor-header">
+            <h3 id="editorTitle">编辑讲稿</h3>
+            <div style="display:flex;gap:8px;">
+                <button class="btn" onclick="pasteFromClipboard()">从剪贴板粘贴</button>
+                <button class="btn primary" onclick="applyText()">应用并关闭</button>
+            </div>
+        </div>
+        <div class="editor-body">
+            <textarea id="scriptEditor" placeholder="在此粘贴或输入你的讲稿内容……"></textarea>
+        </div>
+    </div>
+</div>
+
+<!-- 状态栏 -->
+<div class="status-bar" id="statusBar">
+    <span id="statusText">就绪 — 点击屏幕中央或空格键播放</span>
+    <span id="durationText" style="color:var(--accent);"></span>
+    <span id="progressText" style="display:none;">0%</span>
+</div>
+
+<!-- 快捷键提示 -->
+<div class="shortcuts-hint" id="shortcutsHint">
+    <kbd>Space</kbd> 播放/暂停 &nbsp; <kbd>↑</kbd><kbd>↓</kbd> 调速<br>
+    <kbd>F</kbd> 镜像 &nbsp; <kbd>Esc</kbd> 编辑 &nbsp; <kbd>R</kbd> 重置<br>
+    <kbd>B</kbd> 书签 &nbsp; 双击=全屏 &nbsp; 捏合=缩放<br>
+    <kbd>Ctrl+S</kbd> 导出 &nbsp; <kbd>Ctrl+O</kbd> 导入 &nbsp; <kbd>Ctrl+D</kbd> 方向
+</div>
+
+<script>
+(function() {
+    // ========== 状态 ==========
+    const state = {
+        isPlaying: false,
+        speedMultiplier: 1.0,
+        baseSpeed: 50,
+        fontSize: 40,
+        textColor: '#e6edf3',
+        bgColor: '#0d1117',
+        isMirrored: false,
+        letterSpacing: 0,
+        lineHeight: 1.6,
+        fontFamily: '',
+        scrollDirection: 'up',     // 'up' = 下→上(默认), 'down' = 上→下
+        maskEnabled: true,
+        scrollPos: 0,
+        maxScroll: 0,
+        rafId: null,
+        lastTime: 0,
+        bookmarks: [],
+        toolbarVisible: true,
+        toolbarHideTimer: null,
+        isCountingDown: false,
+        currentScriptId: '__current__',
+        // 摄像头
+        camActive: false,
+        camStream: null,
+        camFacingMode: 'user',
+        camEnabled: false,
+        camX: 0, camY: 0,
+        camWidth: 160,
+        // 遥控
+        remoteChannel: null,
+        autoSaveTimer: null,
+    };
+
+    const defaults = {
+        speedMultiplier: 1.0,
+        fontSize: 40,
+        textColor: '#e6edf3',
+        bgColor: '#0d1117',
+        isMirrored: false,
+        letterSpacing: 0,
+        lineHeight: 1.6,
+        fontFamily: '',
+        scrollDirection: 'up',
+        maskEnabled: true,
+    };
+
+    // ========== 讲稿数据存储 ==========
+    function loadScripts() {
+        try {
+            return JSON.parse(localStorage.getItem('tp_scripts') || '[]');
+        } catch(e) { return []; }
+    }
+
+    function saveScripts(scripts) {
+        try {
+            localStorage.setItem('tp_scripts', JSON.stringify(scripts));
+        } catch(e) {}
+    }
+
+    function getCurrentScriptText() {
+        if (state.currentScriptId === '__current__') return teleText.textContent;
+        const scripts = loadScripts();
+        const s = scripts.find(function(x) { return x.id === state.currentScriptId; });
+        return s ? s.text : teleText.textContent;
+    }
+
+    function setCurrentScriptText(t) {
+        if (state.currentScriptId === '__current__') {
+            teleText.textContent = t;
+            localStorage.setItem('teleprompter_script', t);
+        } else {
+            const scripts = loadScripts();
+            const s = scripts.find(function(x) { return x.id === state.currentScriptId; });
+            if (s) { s.text = t; saveScripts(scripts); }
+            teleText.textContent = t;
+        }
+    }
+
+    // ========== DOM ==========
+    const $ = function(id) { return document.getElementById(id); };
+    const viewport       = $('viewport');
+    const teleText       = $('teleprompterText');
+    const btnPlay        = $('btnPlay');
+    const speedSlider    = $('speedSlider');
+    const speedLabel     = $('speedLabel');
+    const fontSizeSlider = $('fontSizeSlider');
+    const fontSizeLabel  = $('fontSizeLabel');
+    const textColorInput = $('textColor');
+    const bgColorInput   = $('bgColor');
+    const btnMirror      = $('btnMirror');
+    const progressBar    = $('progressBar');
+    const progressText   = $('progressText');
+    const statusText     = $('statusText');
+    const durationText   = $('durationText');
+    const editorPanel    = $('editorPanel');
+    const scriptEditor   = $('scriptEditor');
+    const editorTitle    = $('editorTitle');
+    const shortcutsHint  = $('shortcutsHint');
+    const toolbar        = $('toolbar');
+    const bookmarkPanel  = $('bookmarkPanel');
+    const bookmarkList   = $('bookmarkList');
+    const bookmarkLayer  = $('bookmarkLayer');
+    const countdownOverlay = $('countdownOverlay');
+    const countdownNumber  = $('countdownNumber');
+    const cameraPip       = $('cameraPip');
+    const cameraVideo     = $('cameraVideo');
+    const camDragHandle   = $('camDragHandle');
+    const camResizeHandle = $('camResizeHandle');
+    const camPermOverlay  = $('camPermOverlay');
+    const btnCamera       = $('btnCamera');
+    const letterSpacingSlider = $('letterSpacingSlider');
+    const letterSpacingLabel  = $('letterSpacingLabel');
+    const lineHeightSlider    = $('lineHeightSlider');
+    const lineHeightLabel     = $('lineHeightLabel');
+    const btnReset            = $('btnReset');
+    const scriptSelector      = $('scriptSelector');
+    const fontSelector        = $('fontSelector');
+    const btnDirection        = $('btnDirection');
+    const btnMask             = $('btnMask');
+    const edgeMaskTop         = $('edgeMaskTop');
+    const edgeMaskBottom      = $('edgeMaskBottom');
+    const qrOverlay           = $('qrOverlay');
+    const qrCanvas            = $('qrCanvas');
+    const remotePanel         = $('remotePanel');
+    const remoteStatus        = $('remoteStatus');
+    const remoteSpeed         = $('remoteSpeed');
+    const autoRestoreDialog   = $('autoRestoreDialog');
+    const renameDialog        = $('renameDialog');
+    const renameInput         = $('renameInput');
+    const fileImportInput     = $('fileImportInput');
+
+    let pendingRenameId = null;
+
+    // ========== 速度计算 ==========
+    function getSpeedPx() {
+        return state.baseSpeed * state.speedMultiplier;
+    }
+
+    function updateSpeedDisplay() {
+        speedLabel.textContent = state.speedMultiplier.toFixed(1) + 'x';
+    }
+
+    // ========== 朗读时长预估 ==========
+    function estimateDuration() {
+        var text = teleText.textContent || '';
+        var chineseChars = 0;
+        var englishWords = 0;
+        for (var i = 0; i < text.length; i++) {
+            var ch = text.charCodeAt(i);
+            if (ch >= 0x4E00 && ch <= 0x9FFF || ch >= 0x3400 && ch <= 0x4DBF) {
+                chineseChars++;
+            } else if ((ch >= 65 && ch <= 90) || (ch >= 97 && ch <= 122)) {
+                englishWords++;
+            }
+        }
+        englishWords = Math.round(englishWords / 5);
+        var totalUnits = chineseChars + englishWords;
+        var seconds = Math.round(totalUnits * 0.25 / state.speedMultiplier);
+        if (seconds < 60) {
+            durationText.textContent = '约 ' + seconds + ' 秒';
+        } else {
+            var m = Math.floor(seconds / 60);
+            var s = seconds % 60;
+            durationText.textContent = '约 ' + m + ' 分 ' + s + ' 秒';
+        }
+        return seconds;
+    }
+
+    function updateCountdown() {
+        if (!state.isPlaying) return;
+        var elapsed = (state.scrollPos / (state.maxScroll || 1));
+        var total = estimateDuration();
+        var remaining = Math.max(0, Math.round(total * (1 - elapsed)));
+        if (remaining < 60) {
+            durationText.textContent = '剩余 ' + remaining + ' 秒';
+        } else {
+            var m = Math.floor(remaining / 60);
+            var s = remaining % 60;
+            durationText.textContent = '剩余 ' + m + ' 分 ' + s + ' 秒';
+        }
+    }
+
+    // ========== 边缘遮罩 ==========
+    function updateEdgeMask() {
+        var bg = state.bgColor;
+        var hexToRgb = function(hex) {
+            var h = hex.replace('#', '');
+            return {
+                r: parseInt(h.substring(0,2), 16),
+                g: parseInt(h.substring(2,4), 16),
+                b: parseInt(h.substring(4,6), 16)
+            };
+        };
+        var rgb = hexToRgb(bg);
+        var toTop, toBottom;
+        if (state.scrollDirection === 'up') {
+            toTop = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',1) 0%, rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0) 100%';
+            toBottom = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0) 0%, rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',1) 100%';
+        } else {
+            toTop = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0) 0%, rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',1) 100%';
+            toBottom = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',1) 0%, rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0) 100%';
+        }
+        edgeMaskTop.style.background = 'linear-gradient(to bottom, ' + toTop + ')';
+        edgeMaskBottom.style.background = 'linear-gradient(to bottom, ' + toBottom + ')';
+        if (!state.maskEnabled) {
+            edgeMaskTop.classList.add('mask-off');
+            edgeMaskBottom.classList.add('mask-off');
+        } else {
+            edgeMaskTop.classList.remove('mask-off');
+            edgeMaskBottom.classList.remove('mask-off');
+        }
+    }
+
+    function toggleMask() {
+        state.maskEnabled = !state.maskEnabled;
+        btnMask.classList.toggle('active', !state.maskEnabled);
+        updateEdgeMask();
+        saveSettings();
+        resetToolbarTimer();
+    }
+
+    // ========== 滚动方向 ==========
+    function toggleDirection() {
+        state.scrollDirection = (state.scrollDirection === 'up') ? 'down' : 'up';
+        if (state.scrollDirection === 'up') {
+            btnDirection.innerHTML = '<span style="font-size:13px;line-height:1;">↑</span><span class="btn-label">上滚</span>';
+        } else {
+            btnDirection.innerHTML = '<span style="font-size:13px;line-height:1;">↓</span><span class="btn-label">下滚</span>';
+        }
+        updateEdgeMask();
+        saveSettings();
+        if (!state.isPlaying) applyScroll();
+        resetToolbarTimer();
+    }
+
+    // ========== 字体选择 ==========
+    function updateFont() {
+        state.fontFamily = fontSelector.value;
+        document.body.style.setProperty('--tp-font', state.fontFamily || '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif');
+        saveSettings();
+        resetToolbarTimer();
+    }
+
+    // ========== 讲稿管理 ==========
+    function refreshScriptSelector() {
+        var scripts = loadScripts();
+        var currentId = state.currentScriptId;
+        scriptSelector.innerHTML = '<option value="__current__">当前</option>';
+        for (var i = 0; i < scripts.length; i++) {
+            var s = scripts[i];
+            scriptSelector.innerHTML += '<option value="' + s.id + '">' + escHtml(s.name) + '</option>';
+        }
+        scriptSelector.value = currentId;
+    }
+
+    function escHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function switchScript() {
+        var newId = scriptSelector.value;
+        if (newId === state.currentScriptId) return;
+        if (state.isPlaying) pause();
+        // 保存当前文本
+        var prevText = teleText.textContent;
+        if (state.currentScriptId === '__current__') {
+            localStorage.setItem('teleprompter_script', prevText);
+        } else {
+            var scripts = loadScripts();
+            var ps = scripts.find(function(x) { return x.id === state.currentScriptId; });
+            if (ps) { ps.text = prevText; saveScripts(scripts); }
+        }
+        // 加载新讲稿
+        state.currentScriptId = newId;
+        if (newId === '__current__') {
+            teleText.textContent = localStorage.getItem('teleprompter_script') || '';
+        } else {
+            var scripts2 = loadScripts();
+            var ns = scripts2.find(function(x) { return x.id === newId; });
+            teleText.textContent = ns ? ns.text : '';
+        }
+        state.scrollPos = 0; state.bookmarks = [];
+        updateMaxScroll(); applyScroll();
+        renderBookmarkIndicators();
+        estimateDuration();
+        progressBar.style.width = '0%'; progressText.textContent = '0%';
+        saveSettings();
+        statusText.textContent = '已切换讲稿';
+    }
+
+    function newScript() {
+        var name = '讲稿 ' + (loadScripts().length + 1);
+        var id = 'sc_' + Date.now();
+        var scripts = loadScripts();
+        scripts.push({ id: id, name: name, text: '', createdAt: new Date().toISOString() });
+        saveScripts(scripts);
+        state.currentScriptId = id;
+        teleText.textContent = '';
+        state.scrollPos = 0; state.bookmarks = [];
+        updateMaxScroll(); applyScroll();
+        renderBookmarkIndicators();
+        estimateDuration();
+        refreshScriptSelector();
+        saveSettings();
+        statusText.textContent = '已创建: ' + name;
+    }
+
+    function renameScript() {
+        if (state.currentScriptId === '__current__') {
+            statusText.textContent = '"当前"讲稿不可重命名，请先新建讲稿';
+            return;
+        }
+        pendingRenameId = state.currentScriptId;
+        var scripts = loadScripts();
+        var s = scripts.find(function(x) { return x.id === pendingRenameId; });
+        renameInput.value = s ? s.name : '';
+        renameDialog.classList.remove('hidden');
+        setTimeout(function() { renameInput.focus(); renameInput.select(); }, 100);
+    }
+
+    function closeRenameDialog() {
+        renameDialog.classList.add('hidden');
+        pendingRenameId = null;
+    }
+
+    function doRename() {
+        var newName = renameInput.value.trim();
+        if (!newName) { statusText.textContent = '名称不能为空'; return; }
+        var scripts = loadScripts();
+        var s = scripts.find(function(x) { return x.id === pendingRenameId; });
+        if (s) { s.name = newName; saveScripts(scripts); }
+        refreshScriptSelector();
+        closeRenameDialog();
+        statusText.textContent = '已重命名为: ' + newName;
+    }
+
+    function deleteScript() {
+        if (state.currentScriptId === '__current__') {
+            statusText.textContent = '"当前"讲稿不可删除';
+            return;
+        }
+        if (!confirm('确定要删除当前讲稿吗？此操作不可撤销。')) return;
+        if (state.isPlaying) pause();
+        var scripts = loadScripts();
+        scripts = scripts.filter(function(x) { return x.id !== state.currentScriptId; });
+        saveScripts(scripts);
+        state.currentScriptId = '__current__';
+        teleText.textContent = localStorage.getItem('teleprompter_script') || '';
+        state.scrollPos = 0; state.bookmarks = [];
+        updateMaxScroll(); applyScroll();
+        renderBookmarkIndicators();
+        estimateDuration();
+        refreshScriptSelector();
+        saveSettings();
+        statusText.textContent = '讲稿已删除';
+    }
+
+    // ========== 导入导出 ==========
+    function triggerImport() {
+        fileImportInput.click();
+    }
+
+    function handleFileImport(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var ext = file.name.split('.').pop().toLowerCase();
+        if (ext !== 'txt' && ext !== 'md') {
+            statusText.textContent = '仅支持 .txt / .md 文件';
+            fileImportInput.value = '';
+            return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            var text = ev.target.result;
+            if (text.length > 500000) {
+                statusText.textContent = '文件过大（超过500KB），请分割后导入';
+                return;
+            }
+            setCurrentScriptText(text);
+            scriptEditor.value = text;
+            state.scrollPos = 0; state.bookmarks = [];
+            updateMaxScroll(); applyScroll();
+            renderBookmarkIndicators();
+            estimateDuration();
+            statusText.textContent = '已导入: ' + file.name + ' (' + text.length + ' 字)';
+        };
+        reader.onerror = function() {
+            statusText.textContent = '文件读取失败，请检查文件编码';
+        };
+        reader.readAsText(file, 'UTF-8');
+        fileImportInput.value = '';
+    }
+
+    function exportText() {
+        var text = teleText.textContent;
+        if (!text.trim()) { statusText.textContent = '无内容可导出'; return; }
+        var blob = new Blob([text], { type: 'text/plain;charset=UTF-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        var scriptName = '讲稿';
+        if (state.currentScriptId !== '__current__') {
+            var scripts = loadScripts();
+            var s = scripts.find(function(x) { return x.id === state.currentScriptId; });
+            if (s) scriptName = s.name;
+        }
+        a.download = scriptName + '.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        statusText.textContent = '已导出: ' + a.download;
+    }
+
+    // 拖拽导入
+    document.addEventListener('dragover', function(e) { e.preventDefault(); });
+    document.addEventListener('drop', function(e) {
+        e.preventDefault();
+        var file = e.dataTransfer.files[0];
+        if (!file) return;
+        var name = file.name.toLowerCase();
+        if (name.endsWith('.txt') || name.endsWith('.md')) {
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                var text = ev.target.result;
+                if (text.length > 500000) { statusText.textContent = '文件过大'; return; }
+                setCurrentScriptText(text);
+                scriptEditor.value = text;
+                state.scrollPos = 0; state.bookmarks = [];
+                updateMaxScroll(); applyScroll();
+                renderBookmarkIndicators();
+                estimateDuration();
+                statusText.textContent = '已导入: ' + file.name + ' (' + text.length + ' 字)';
+            };
+            reader.onerror = function() {
+                statusText.textContent = '文件读取失败，请检查文件编码';
+            };
+            reader.readAsText(file, 'UTF-8');
+        } else {
+            statusText.textContent = '仅支持 .txt / .md 文件拖拽导入';
+        }
+    });
+
+    // ========== 自动保存 ==========
+    function startAutoSave() {
+        stopAutoSave();
+        state.autoSaveTimer = setInterval(function() {
+            var currentText = teleText.textContent;
+            localStorage.setItem('tp_autosave_text', currentText);
+            localStorage.setItem('tp_autosave_time', Date.now().toString());
+        }, 3000);
+    }
+
+    function stopAutoSave() {
+        if (state.autoSaveTimer) {
+            clearInterval(state.autoSaveTimer);
+            state.autoSaveTimer = null;
+        }
+    }
+
+    function checkAutoRestore() {
+        var saved = localStorage.getItem('tp_autosave_text');
+        var time = localStorage.getItem('tp_autosave_time');
+        if (!saved || saved.trim() === '') return;
+        var currentText = localStorage.getItem('teleprompter_script') || teleText.textContent || '';
+        if (saved.trim() === currentText.trim()) return;
+        var savedTime = parseInt(time) || 0;
+        var now = Date.now();
+        if (now - savedTime > 86400000) return; // 超过24小时不提示
+        autoRestoreDialog.classList.remove('hidden');
+    }
+
+    function confirmAutoRestore() {
+        autoRestoreDialog.classList.add('hidden');
+        var text = localStorage.getItem('tp_autosave_text') || '';
+        setCurrentScriptText(text);
+        state.scrollPos = 0; state.bookmarks = [];
+        updateMaxScroll(); applyScroll();
+        renderBookmarkIndicators();
+        estimateDuration();
+        statusText.textContent = '已恢复自动保存内容';
+    }
+
+    function dismissAutoRestore() {
+        autoRestoreDialog.classList.add('hidden');
+        localStorage.removeItem('tp_autosave_text');
+    }
+
+    // ========== 遥控系统 (WebSocket) ==========
+    var qrRoomCode = document.getElementById('qrRoomCode');
+    var qrStatus = document.getElementById('qrStatus');
+
+    function getLocalIP() {
+        // 返回局域网 IP，失败则 fallback 到 location.hostname
+        if (state.localIP) return Promise.resolve(state.localIP);
+        return new Promise(function(resolve) {
+            try {
+                var pc = new RTCPeerConnection({iceServers:[]});
+                pc.createDataChannel('');
+                pc.createOffer().then(function(offer) { return pc.setLocalDescription(offer); });
+                pc.onicecandidate = function(e) {
+                    if (!e.candidate) {
+                        pc.close();
+                        resolve(state.localIP || location.hostname);
+                        return;
+                    }
+                    var ip = e.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+                    if (ip && ip[1] && !ip[1].startsWith('0.') && ip[1] !== '127.0.0.1') {
+                        state.localIP = ip[1];
+                    }
+                };
+                setTimeout(function() { pc.close(); resolve(state.localIP || location.hostname); }, 2000);
+            } catch(e) { resolve(location.hostname); }
+        });
+    }
+
+    function openQROverlay() {
+        if (!state.roomCode) {
+            state.roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+        }
+        getLocalIP().then(function(lanIP) {
+            var remoteUrl = 'http://' + lanIP + ':8888/teleprompter.html?remote=1&room=' + state.roomCode;
+            qrRoomCode.textContent = '房间码: ' + state.roomCode;
+            qrStatus.textContent = '正在连接...';
+            qrOverlay.classList.remove('hidden');
+            drawQR(qrCanvas, remoteUrl);
+        });
+
+        // 主控端 WebSocket 始终用 localhost（同机）
+        connectWS(location.hostname, state.roomCode);
+    }
+
+    function connectWS(host, room) {
+        closeWS();
+        try {
+            var ws = new WebSocket('ws://' + host + ':8889');
+            state.ws = ws;
+            ws.onopen = function() {
+                ws.send(JSON.stringify({ type: 'join', room: room }));
+            };
+            ws.onmessage = function(e) {
+                try {
+                    var data = JSON.parse(e.data);
+                    if (data.type === 'cmd') {
+                        execRemoteCmd(data.action);
+                    } else if (data.type === 'join_notify') {
+                        var cnt = data.count;
+                        qrStatus.textContent = '已连接（' + cnt + ' 台设备）';
+                    }
+                } catch (ex) {}
+            };
+            ws.onerror = function() {
+                qrStatus.textContent = '连接失败';
+            };
+            ws.onclose = function() {
+                if (!qrOverlay.classList.contains('hidden')) {
+                    qrStatus.textContent = '连接已断开';
+                }
+                state.ws = null;
+            };
+        } catch (e) {
+            qrStatus.textContent = '连接失败';
+        }
+    }
+
+    function closeWS() {
+        if (state.ws) {
+            state.ws.onclose = null;
+            state.ws.close();
+            state.ws = null;
+        }
+    }
+
+    function closeQROverlay() {
+        qrOverlay.classList.add('hidden');
+        // 保持 WebSocket 连接，关闭浮层后仍可接收遥控指令
+    }
+
+    // 简易 QR 码绘制（仅支持短 URL）
+    function drawQR(canvas, text) {
+        // 使用 Google Chart API 的 QR 码作为后备图片绘制
+        var img = new Image();
+        img.onload = function() {
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, 200, 200);
+            ctx.drawImage(img, 4, 4, 192, 192);
+        };
+        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=' + encodeURIComponent(text);
+    }
+
+    function isRemoteMode() {
+        return new URLSearchParams(location.search).get('remote') === '1';
+    }
+
+    function initRemote() {
+        if (isRemoteMode()) {
+            var params = new URLSearchParams(location.search);
+            var room = params.get('room');
+            var host = location.hostname;
+
+            document.body.innerHTML = '';
+            document.body.style.cssText = 'background:var(--bg);display:flex;align-items:center;justify-content:center;min-height:100vh;';
+            remotePanel.classList.remove('hidden');
+            document.body.appendChild(remotePanel);
+
+            if (!room) {
+                remoteStatus.textContent = '缺少房间码';
+                return true;
+            }
+
+            remoteStatus.textContent = '正在连接房间 ' + room + ' ...';
+            try {
+                var ws = new WebSocket('ws://' + host + ':8889');
+                state.ws = ws;
+                ws.onopen = function() {
+                    ws.send(JSON.stringify({ type: 'join', room: room }));
+                    remoteStatus.textContent = '已连接到房间 ' + room;
+                };
+                ws.onmessage = function(e) {
+                    try {
+                        var data = JSON.parse(e.data);
+                        if (data.type === 'state') {
+                            remoteSpeed.textContent = (data.speed || 1.0).toFixed(1) + 'x';
+                            var playBtn = remotePanel.querySelector('.remote-btn:nth-child(2)');
+                            if (data.playing && playBtn) playBtn.textContent = '\u23F8';
+                            else if (playBtn) playBtn.textContent = '\u25B6';
+                        }
+                    } catch (ex) {}
+                };
+                ws.onerror = function() {
+                    remoteStatus.textContent = '连接失败 - 请先在电脑上运行 serve.py';
+                };
+                ws.onclose = function() {
+                    remoteStatus.textContent = '连接已断开';
+                };
+            } catch (e) {
+                remoteStatus.textContent = '连接失败 - 请先在电脑上运行 serve.py';
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function sendRemoteCmd(action) {
+        if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+            state.ws.send(JSON.stringify({ type: 'cmd', action: action }));
+        }
+    }
+
+    function execRemoteCmd(action) {
+        switch (action) {
+            case 'togglePlay': case 'play': case 'pause':
+                togglePlay();
+                break;
+            case 'speedUp':
+                state.speedMultiplier = Math.min(3.0, +(state.speedMultiplier + 0.1).toFixed(1));
+                speedSlider.value = state.speedMultiplier;
+                updateSpeedDisplay(); saveSettings();
+                break;
+            case 'speedDown':
+                state.speedMultiplier = Math.max(0.5, +(state.speedMultiplier - 0.1).toFixed(1));
+                speedSlider.value = state.speedMultiplier;
+                updateSpeedDisplay(); saveSettings();
+                break;
+            case 'fontUp':
+                state.fontSize = Math.min(100, state.fontSize + 4);
+                fontSizeSlider.value = state.fontSize;
+                fontSizeLabel.textContent = state.fontSize;
+                teleText.style.fontSize = state.fontSize + 'px';
+                saveSettings(); updateMaxScroll();
+                if (state.scrollPos > state.maxScroll) state.scrollPos = state.maxScroll;
+                applyScroll();
+                break;
+            case 'fontDown':
+                state.fontSize = Math.max(20, state.fontSize - 4);
+                fontSizeSlider.value = state.fontSize;
+                fontSizeLabel.textContent = state.fontSize;
+                teleText.style.fontSize = state.fontSize + 'px';
+                saveSettings(); updateMaxScroll();
+                if (state.scrollPos > state.maxScroll) state.scrollPos = state.maxScroll;
+                applyScroll();
+                break;
+            case 'prevLine':
+                state.scrollPos = Math.max(0, state.scrollPos - 200);
+                applyScroll();
+                break;
+            case 'nextLine':
+                state.scrollPos = Math.min(state.maxScroll, state.scrollPos + 200);
+                applyScroll();
+                break;
+            case 'reset':
+                resetAll();
+                break;
+        }
+    }
+
+    // ========== 初始化 ==========
+    function init() {
+        if (initRemote()) return; // 遥控模式直接返回
+
+        try {
+            var saved = JSON.parse(localStorage.getItem('tp_settings') || '{}');
+            if (saved.speedMultiplier) state.speedMultiplier = saved.speedMultiplier;
+            if (saved.fontSize) state.fontSize = saved.fontSize;
+            if (saved.textColor) state.textColor = saved.textColor;
+            if (saved.bgColor) state.bgColor = saved.bgColor;
+            if (saved.bookmarks) state.bookmarks = saved.bookmarks;
+            if (saved.camEnabled !== undefined) state.camEnabled = saved.camEnabled;
+            if (saved.letterSpacing !== undefined) state.letterSpacing = saved.letterSpacing;
+            if (saved.lineHeight !== undefined) state.lineHeight = saved.lineHeight;
+            if (saved.fontFamily !== undefined) state.fontFamily = saved.fontFamily;
+            if (saved.scrollDirection) state.scrollDirection = saved.scrollDirection;
+            if (saved.maskEnabled !== undefined) state.maskEnabled = saved.maskEnabled;
+            if (saved.currentScriptId) state.currentScriptId = saved.currentScriptId;
+        } catch(e) {}
+
+        speedSlider.value = state.speedMultiplier;
+        updateSpeedDisplay();
+        fontSizeSlider.value = state.fontSize;
+        fontSizeLabel.textContent = state.fontSize;
+        textColorInput.value = state.textColor;
+        bgColorInput.value = state.bgColor;
+
+        teleText.style.fontSize = state.fontSize + 'px';
+        teleText.style.color = state.textColor;
+        teleText.style.setProperty('--letter-spacing', state.letterSpacing + 'px');
+        teleText.style.setProperty('--line-height', state.lineHeight);
+        viewport.style.background = state.bgColor;
+
+        letterSpacingSlider.value = state.letterSpacing;
+        letterSpacingLabel.textContent = state.letterSpacing;
+        lineHeightSlider.value = state.lineHeight;
+        lineHeightLabel.textContent = state.lineHeight.toFixed(1);
+
+        fontSelector.value = state.fontFamily || '';
+        if (state.fontFamily) {
+            document.body.style.setProperty('--tp-font', state.fontFamily || '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif');
+        }
+
+        if (state.scrollDirection === 'down') {
+            btnDirection.innerHTML = '<span style="font-size:13px;line-height:1;">↓</span><span class="btn-label">下滚</span>';
+        }
+
+        if (!state.maskEnabled) {
+            btnMask.classList.add('active');
+        }
+
+        // 恢复讲稿文本
+        refreshScriptSelector();
+        var scriptText = '';
+        if (state.currentScriptId === '__current__') {
+            scriptText = localStorage.getItem('teleprompter_script') || '';
+        } else {
+            var scripts = loadScripts();
+            var s = scripts.find(function(x) { return x.id === state.currentScriptId; });
+            scriptText = s ? s.text : '';
+        }
+        if (scriptText) { teleText.textContent = scriptText; }
+
+        updateMaxScroll();
+        updateEdgeMask();
+        estimateDuration();
+
+        showToolbar();
+        resetToolbarTimer();
+
+        setTimeout(function() {
+            shortcutsHint.style.transition = 'opacity 1s ease';
+            shortcutsHint.style.opacity = '0';
+            setTimeout(function() { if (shortcutsHint) shortcutsHint.remove(); }, 1200);
+        }, 10000);
+
+        requestAnimationFrame(function() {
+            applyScroll();
+        });
+
+        renderBookmarkIndicators();
+
+        // 自动恢复检查
+        setTimeout(checkAutoRestore, 500);
+        // 启动自动保存
+        startAutoSave();
+    }
+
+    function updateMaxScroll() {
+        state.maxScroll = Math.max(0, teleText.scrollHeight);
+    }
+
+    function saveSettings() {
+        try {
+            localStorage.setItem('tp_settings', JSON.stringify({
+                speedMultiplier: state.speedMultiplier,
+                fontSize: state.fontSize,
+                textColor: state.textColor,
+                bgColor: state.bgColor,
+                letterSpacing: state.letterSpacing,
+                lineHeight: state.lineHeight,
+                fontFamily: state.fontFamily,
+                scrollDirection: state.scrollDirection,
+                maskEnabled: state.maskEnabled,
+                currentScriptId: state.currentScriptId,
+                bookmarks: state.bookmarks,
+                camEnabled: state.camEnabled,
+            }));
+        } catch(e) {}
+    }
+
+    // ========== 工具栏显隐 ==========
+    function showToolbar() {
+        toolbar.classList.add('visible');
+        state.toolbarVisible = true;
+    }
+
+    function hideToolbar() {
+        if (editorPanel.classList.contains('hidden') && bookmarkPanel.classList.contains('hidden')) {
+            toolbar.classList.remove('visible');
+            state.toolbarVisible = false;
+        }
+    }
+
+    function toggleToolbar() {
+        if (state.toolbarVisible) { hideToolbar(); }
+        else { showToolbar(); resetToolbarTimer(); }
+    }
+
+    function resetToolbarTimer() {
+        clearTimeout(state.toolbarHideTimer);
+        state.toolbarHideTimer = setTimeout(function() {
+            if (state.isPlaying || gesture.mode !== 'idle') return;
+            hideToolbar();
+        }, 4000);
+    }
+
+    // ========== 播放控制 ==========
+    function togglePlay() {
+        if (state.isCountingDown) return;
+        if (state.isPlaying) { pause(); }
+        else { play(); }
+        resetToolbarTimer();
+    }
+
+    function play() {
+        if (state.maxScroll <= 0) { statusText.textContent = '无文本内容'; return; }
+        if (state.scrollDirection === 'up') {
+            if (state.scrollPos >= state.maxScroll) state.scrollPos = 0;
+        } else {
+            if (state.scrollPos <= 0) state.scrollPos = state.maxScroll;
+        }
+        applyScroll();
+        state.isPlaying = true;
+        state.lastTime = performance.now();
+        btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u23F8</span><span class="btn-label">暂停</span>';
+        btnPlay.classList.add('active');
+        statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+        updateMaxScroll();
+        estimateDuration();
+        if (state.camEnabled && !state.camActive) startCamera();
+        loop();
+    }
+
+    function pause() {
+        state.isPlaying = false;
+        cancelAnimationFrame(state.rafId); state.rafId = null;
+        btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u25B6</span><span class="btn-label">播放</span>';
+        btnPlay.classList.remove('active');
+        statusText.textContent = '已暂停';
+        estimateDuration();
+    }
+
+    function loop(now) {
+        if (!state.isPlaying) return;
+        if (!now) now = performance.now();
+        var dt = Math.min(0.1, (now - state.lastTime) / 1000);
+        state.lastTime = now;
+
+        if (dt > 0) {
+            var speed = getSpeedPx();
+            if (state.scrollDirection === 'down') speed = -speed;
+
+            var remaining = state.scrollDirection === 'up'
+                ? state.maxScroll - state.scrollPos
+                : state.scrollPos;
+            var decelZone = Math.max(Math.abs(speed) * 1.5, viewport.clientHeight * 0.3);
+
+            if (Math.abs(remaining) < decelZone && Math.abs(remaining) > 0) {
+                var factor = Math.abs(remaining) / decelZone;
+                speed *= 0.1 + 0.9 * factor * factor;
+            }
+            state.scrollPos += speed * dt;
+        }
+
+        var limitReached = state.scrollDirection === 'up'
+            ? state.scrollPos >= state.maxScroll
+            : state.scrollPos <= 0;
+
+        if (limitReached) {
+            state.scrollPos = state.scrollDirection === 'up' ? state.maxScroll : 0;
+            applyScroll(); pause();
+            statusText.textContent = '完成';
+            return;
+        }
+        applyScroll();
+        updateCountdown();
+        state.rafId = requestAnimationFrame(loop);
+    }
+
+    function applyScroll() {
+        var translateY = -state.scrollPos;
+
+        teleText.style.transform = state.isMirrored
+            ? 'translateY(' + translateY + 'px) scaleX(-1) translateZ(0)'
+            : 'translateY(' + translateY + 'px) translateZ(0)';
+
+        updateProgress();
+    }
+
+    function updateProgress() {
+        if (state.maxScroll <= 0) {
+            progressBar.style.width = '0%'; progressText.textContent = '0%'; return;
+        }
+        var pct = Math.min(100, Math.round((state.scrollPos / state.maxScroll) * 100));
+        progressBar.style.width = pct + '%';
+        progressText.textContent = pct + '%';
+    }
+
+    function resetAll() {
+        pause();
+        state.scrollPos = 0;
+        state.letterSpacing = defaults.letterSpacing;
+        state.lineHeight = defaults.lineHeight;
+        state.isMirrored = false;
+        btnMirror.classList.remove('active');
+        teleText.classList.remove('mirrored');
+
+        letterSpacingSlider.value = defaults.letterSpacing;
+        letterSpacingLabel.textContent = defaults.letterSpacing;
+        lineHeightSlider.value = defaults.lineHeight;
+        lineHeightLabel.textContent = defaults.lineHeight.toFixed(1);
+        teleText.style.setProperty('--letter-spacing', defaults.letterSpacing + 'px');
+        teleText.style.setProperty('--line-height', defaults.lineHeight);
+
+        applyScroll();
+        statusText.textContent = '已重置';
+        stopCamera();
+    }
+
+    // ========== 摄像头系统 ==========
+    function positionCameraPip() {
+        var stage = viewport.parentElement;
+        var sw = stage.clientWidth;
+        var sh = stage.clientHeight;
+        var w = state.camWidth;
+        var h = w * 0.75;
+        if (state.camX === 0 && state.camY === 0) {
+            state.camX = sw - w - 16;
+            state.camY = 60;
+        }
+        state.camX = Math.max(0, Math.min(state.camX, sw - w));
+        state.camY = Math.max(0, Math.min(state.camY, sh - h));
+        cameraPip.style.left = state.camX + 'px';
+        cameraPip.style.top = state.camY + 'px';
+        cameraPip.style.width = w + 'px';
+    }
+
+    function startCamera(facingMode) {
+        if (state.camActive) return;
+        var fm = facingMode || state.camFacingMode;
+        var constraints = {
+            video: { facingMode: fm, width: { ideal: 320 }, height: { ideal: 240 } },
+            audio: false,
+        };
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(function(stream) {
+                state.camStream = stream;
+                state.camActive = true;
+                state.camFacingMode = fm;
+                state.camEnabled = true;
+                cameraVideo.srcObject = stream;
+                cameraPip.classList.remove('hidden');
+                btnCamera.classList.add('active');
+                positionCameraPip();
+                statusText.textContent = '摄像头已开启';
+            })
+            .catch(function(err) {
+                state.camEnabled = false;
+                statusText.textContent = '摄像头不可用: ' + (err.name === 'NotAllowedError' ? '权限被拒绝' : err.message);
+            });
+    }
+
+    function stopCamera() {
+        if (state.camStream) {
+            state.camStream.getTracks().forEach(function(t) { t.stop(); });
+            state.camStream = null;
+        }
+        state.camActive = false;
+        cameraVideo.srcObject = null;
+        cameraPip.classList.add('hidden');
+        btnCamera.classList.remove('active');
+    }
+
+    function toggleCamera() {
+        if (state.camActive) {
+            stopCamera();
+            state.camEnabled = false;
+            saveSettings();
+            statusText.textContent = '摄像头已关闭';
+            return;
+        }
+        if (!state.camEnabled && !localStorage.getItem('tp_cam_asked')) {
+            camPermOverlay.classList.remove('hidden');
+            return;
+        }
+        startCamera();
+    }
+
+    function switchCamera() {
+        if (!state.camActive) return;
+        var newMode = state.camFacingMode === 'user' ? 'environment' : 'user';
+        stopCamera();
+        startCamera(newMode);
+        statusText.textContent = '已切换到' + (newMode === 'user' ? '前置' : '后置') + '摄像头';
+    }
+
+    function requestCamera() {
+        camPermOverlay.classList.add('hidden');
+        localStorage.setItem('tp_cam_asked', '1');
+        startCamera();
+    }
+
+    function denyCamera() {
+        camPermOverlay.classList.add('hidden');
+        localStorage.setItem('tp_cam_asked', '1');
+        state.camEnabled = false;
+        saveSettings();
+        statusText.textContent = '已跳过摄像头';
+    }
+
+    // ===== 摄像头 PIP 拖动 =====
+    var camDrag = { active: false, startX: 0, startY: 0, origX: 0, origY: 0 };
+
+    camDragHandle.addEventListener('pointerdown', function(e) {
+        camDrag.active = true;
+        camDrag.startX = e.clientX;
+        camDrag.startY = e.clientY;
+        camDrag.origX = state.camX;
+        camDrag.origY = state.camY;
+        cameraPip.classList.add('dragging');
+        cameraPip.setPointerCapture(e.pointerId);
+        e.preventDefault();
+    });
+
+    window.addEventListener('pointermove', function(e) {
+        if (!camDrag.active) return;
+        var dx = e.clientX - camDrag.startX;
+        var dy = e.clientY - camDrag.startY;
+        state.camX = camDrag.origX + dx;
+        state.camY = camDrag.origY + dy;
+        positionCameraPip();
+    });
+
+    window.addEventListener('pointerup', function() {
+        if (!camDrag.active) return;
+        camDrag.active = false;
+        cameraPip.classList.remove('dragging');
+    });
+
+    // ===== 摄像头 PIP 缩放 =====
+    var camResize = { active: false, startX: 0, origW: 0 };
+
+    camResizeHandle.addEventListener('pointerdown', function(e) {
+        camResize.active = true;
+        camResize.startX = e.clientX;
+        camResize.origW = state.camWidth;
+        cameraPip.setPointerCapture(e.pointerId);
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    window.addEventListener('pointermove', function(e) {
+        if (!camResize.active) return;
+        var dx = e.clientX - camResize.startX;
+        state.camWidth = Math.max(100, Math.min(350, camResize.origW + dx));
+        positionCameraPip();
+    });
+
+    window.addEventListener('pointerup', function() {
+        camResize.active = false;
+    });
+
+    // ========== 倒计时 ==========
+    function startCountdown() {
+        if (state.isCountingDown) return;
+        if (state.isPlaying) pause();
+        state.isCountingDown = true;
+        countdownOverlay.classList.add('active');
+        statusText.textContent = '准备中...';
+
+        var count = 3;
+        function showCount() {
+            if (count <= 0) {
+                countdownNumber.textContent = '';
+                countdownOverlay.classList.remove('active');
+                state.isCountingDown = false;
+                state.scrollPos = 0;
+                applyScroll();
+                play();
+                return;
+            }
+            countdownNumber.textContent = count;
+            countdownNumber.style.animation = 'none';
+            void countdownNumber.offsetWidth;
+            countdownNumber.style.animation = 'count-pop 0.35s ease-out';
+            count--;
+            setTimeout(showCount, 800);
+        }
+        showCount();
+    }
+
+    // ========== 书签系统 ==========
+    function addBookmark() {
+        if (state.maxScroll <= 0) { statusText.textContent = '无文本内容，无法添加书签'; return; }
+        var pct = state.maxScroll > 0 ? Math.round((state.scrollPos / state.maxScroll) * 100) : 0;
+        var label = (pct + '%') + ' — ' + new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        state.bookmarks.push({ label: label, scrollPos: state.scrollPos, percentage: pct });
+        state.bookmarks.sort(function(a, b) { return a.scrollPos - b.scrollPos; });
+        saveSettings();
+        renderBookmarkIndicators();
+        statusText.textContent = '书签已添加: ' + label;
+        flashStatus();
+    }
+
+    function removeBookmark(index) {
+        state.bookmarks.splice(index, 1);
+        saveSettings();
+        renderBookmarkIndicators();
+        renderBookmarkPanel();
+    }
+
+    function jumpToBookmark(index) {
+        var bm = state.bookmarks[index];
+        if (!bm) return;
+        if (state.isPlaying) pause();
+        state.scrollPos = bm.scrollPos;
+        applyScroll();
+        closeBookmarkPanel();
+        statusText.textContent = '跳转到书签: ' + bm.label;
+    }
+
+    function renderBookmarkIndicators() {
+        bookmarkLayer.innerHTML = '';
+        if (state.maxScroll <= 0) return;
+        state.bookmarks.forEach(function(bm) {
+            var el = document.createElement('div');
+            el.className = 'bookmark-indicator';
+            var vpMid = viewport.clientHeight / 2;
+            var viewportPos = vpMid - bm.scrollPos;
+            var topPct = (viewportPos / viewport.clientHeight) * 100;
+            el.style.top = topPct + '%';
+            el.title = bm.label;
+            bookmarkLayer.appendChild(el);
+        });
+    }
+
+    function renderBookmarkPanel() {
+        if (state.bookmarks.length === 0) {
+            bookmarkList.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:40px;">暂无书签<br>播放时点击「书签」按钮添加</p>';
+            return;
+        }
+        var html = '';
+        state.bookmarks.forEach(function(bm, i) {
+            html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">';
+            html += '<span style="color:var(--text);font-size:14px;">' + bm.label + '</span>';
+            html += '<div style="display:flex;gap:6px;">';
+            html += '<button class="btn" onclick="jumpToBookmark(' + i + ')" style="min-width:auto;padding:4px 10px;">跳转</button>';
+            html += '<button class="btn" onclick="removeBookmark(' + i + ')" style="min-width:auto;padding:4px 10px;color:var(--danger);border-color:var(--danger);">删除</button>';
+            html += '</div></div>';
+        });
+        bookmarkList.innerHTML = html;
+    }
+
+    function openBookmarkPanel() {
+        renderBookmarkPanel();
+        bookmarkPanel.classList.remove('hidden');
+        if (state.isPlaying) pause();
+        statusText.textContent = '书签管理';
+    }
+
+    function closeBookmarkPanel() {
+        bookmarkPanel.classList.add('hidden');
+        statusText.textContent = '就绪';
+    }
+
+    function flashStatus() {
+        statusText.style.color = 'var(--success)';
+        setTimeout(function() { statusText.style.color = ''; }, 1500);
+    }
+
+    // ========== 速度 / 字号 / 颜色 / 字距 / 行距 ==========
+    function updateSpeed() {
+        state.speedMultiplier = parseFloat(speedSlider.value);
+        updateSpeedDisplay();
+        saveSettings();
+        statusText.textContent = state.isPlaying
+            ? '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)'
+            : '速度: ' + state.speedMultiplier.toFixed(1) + 'x';
+        if (!state.isPlaying) estimateDuration();
+        resetToolbarTimer();
+    }
+
+    function updateFontSize() {
+        state.fontSize = parseInt(fontSizeSlider.value);
+        fontSizeLabel.textContent = state.fontSize;
+        teleText.style.fontSize = state.fontSize + 'px';
+        saveSettings();
+        updateMaxScroll();
+        if (state.scrollPos > state.maxScroll) state.scrollPos = state.maxScroll;
+        applyScroll();
+        renderBookmarkIndicators();
+        resetToolbarTimer();
+    }
+
+    function updateColors() {
+        state.textColor = textColorInput.value;
+        state.bgColor = bgColorInput.value;
+        teleText.style.color = state.textColor;
+        viewport.style.background = state.bgColor;
+        updateEdgeMask();
+        saveSettings();
+    }
+
+    function updateLetterSpacing() {
+        state.letterSpacing = parseFloat(letterSpacingSlider.value);
+        letterSpacingLabel.textContent = state.letterSpacing;
+        teleText.style.setProperty('--letter-spacing', state.letterSpacing + 'px');
+        saveSettings();
+        resetToolbarTimer();
+    }
+
+    function updateLineHeight() {
+        state.lineHeight = parseFloat(lineHeightSlider.value);
+        lineHeightLabel.textContent = state.lineHeight.toFixed(1);
+        teleText.style.setProperty('--line-height', state.lineHeight);
+        saveSettings();
+        resetToolbarTimer();
+    }
+
+    // ========== 重置所有参数 ==========
+    function confirmReset() {
+        if (state.isPlaying) pause();
+
+        var confirmed = confirm(
+            '确定要重置所有参数吗？\n\n' +
+            '以下参数将恢复为默认值：\n' +
+            '\u2022 字体大小：40px\n' +
+            '\u2022 滚动速度：1.0x\n' +
+            '\u2022 文字颜色：#e6edf3\n' +
+            '\u2022 背景颜色：#0d1117\n' +
+            '\u2022 字间距：0px\n' +
+            '\u2022 行间距：1.6\n' +
+            '\u2022 字体：系统默认\n' +
+            '\u2022 滚动方向：上滚\n' +
+            '\u2022 镜像：关闭\n\n' +
+            '此操作不会删除书签和讲稿文本。'
+        );
+        if (!confirmed) return;
+
+        state.speedMultiplier = defaults.speedMultiplier;
+        state.fontSize = defaults.fontSize;
+        state.textColor = defaults.textColor;
+        state.bgColor = defaults.bgColor;
+        state.letterSpacing = defaults.letterSpacing;
+        state.lineHeight = defaults.lineHeight;
+        state.fontFamily = defaults.fontFamily;
+        state.scrollDirection = defaults.scrollDirection;
+        state.maskEnabled = defaults.maskEnabled;
+        state.isMirrored = false;
+        btnMirror.classList.remove('active');
+        teleText.classList.remove('mirrored');
+
+        speedSlider.value = state.speedMultiplier; updateSpeedDisplay();
+        fontSizeSlider.value = state.fontSize; fontSizeLabel.textContent = state.fontSize;
+        textColorInput.value = state.textColor;
+        bgColorInput.value = state.bgColor;
+        letterSpacingSlider.value = state.letterSpacing; letterSpacingLabel.textContent = state.letterSpacing;
+        lineHeightSlider.value = state.lineHeight; lineHeightLabel.textContent = state.lineHeight.toFixed(1);
+        fontSelector.value = '';
+        document.body.style.setProperty('--tp-font', '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif');
+        btnDirection.innerHTML = '<span style="font-size:13px;line-height:1;">\u2191</span><span class="btn-label">上滚</span>';
+        btnMask.classList.remove('active');
+
+        teleText.style.fontSize = state.fontSize + 'px';
+        teleText.style.color = state.textColor;
+        teleText.style.setProperty('--letter-spacing', state.letterSpacing + 'px');
+        teleText.style.setProperty('--line-height', state.lineHeight);
+        viewport.style.background = state.bgColor;
+        updateEdgeMask();
+
+        state.scrollPos = 0;
+        applyScroll();
+
+        updateMaxScroll(); saveSettings(); stopCamera();
+        estimateDuration();
+        statusText.textContent = '所有参数已重置为默认值';
+        showToolbar(); resetToolbarTimer();
+    }
+
+    // ========== 镜像 ==========
+    function toggleMirror() {
+        state.isMirrored = !state.isMirrored;
+        btnMirror.classList.toggle('active', state.isMirrored);
+        teleText.classList.toggle('mirrored', state.isMirrored);
+        applyScroll();
+        resetToolbarTimer();
+    }
+
+    // ========== 全屏 ==========
+    function toggleFullscreen() {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            var el = document.documentElement;
+            (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+            document.body.classList.add('fullscreen');
+        } else {
+            (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+            document.body.classList.remove('fullscreen');
+        }
+        resetToolbarTimer();
+    }
+
+    document.addEventListener('fullscreenchange', function() {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            document.body.classList.remove('fullscreen');
+        }
+    });
+    document.addEventListener('webkitfullscreenchange', function() {
+        if (!document.webkitFullscreenElement) {
+            document.body.classList.remove('fullscreen');
+        }
+    });
+
+    // ========== 编辑器 ==========
+    function toggleEditor() {
+        if (editorPanel.classList.contains('hidden')) openEditor();
+        else closeEditor();
+    }
+
+    function openEditor() {
+        scriptEditor.value = teleText.textContent;
+        var scriptName = '当前';
+        if (state.currentScriptId !== '__current__') {
+            var scripts = loadScripts();
+            var s = scripts.find(function(x) { return x.id === state.currentScriptId; });
+            if (s) scriptName = s.name;
+        }
+        editorTitle.textContent = '编辑讲稿 — ' + scriptName;
+        editorPanel.classList.remove('hidden');
+        scriptEditor.focus();
+        if (state.isPlaying) pause();
+        hideToolbar();
+        statusText.textContent = '编辑模式';
+    }
+
+    function closeEditor() {
+        editorPanel.classList.add('hidden');
+        statusText.textContent = '就绪';
+        showToolbar();
+    }
+
+    function applyText() {
+        var t = scriptEditor.value.trim();
+        if (!t) { statusText.textContent = '请输入文本内容'; return; }
+        teleText.textContent = t;
+        setCurrentScriptText(t);
+        state.scrollPos = 0; state.bookmarks = [];
+        updateMaxScroll();
+        renderBookmarkIndicators();
+        estimateDuration();
+        applyScroll();
+        closeEditor();
+        statusText.textContent = '文本已更新 (' + t.length + ' 字)';
+        saveSettings();
+    }
+
+    async function pasteFromClipboard() {
+        try {
+            var t = await navigator.clipboard.readText();
+            if (t) { scriptEditor.value = t; statusText.textContent = '已粘贴 ' + t.length + ' 字'; }
+        } catch(e) { statusText.textContent = '请手动粘贴 (Ctrl+V)'; }
+    }
+
+    // ========== 键盘快捷键 ==========
+    document.addEventListener('keydown', function(e) {
+        if (!editorPanel.classList.contains('hidden')) {
+            if (e.key === 'Escape') { e.preventDefault(); closeEditor(); }
+            return;
+        }
+        if (!bookmarkPanel.classList.contains('hidden')) {
+            if (e.key === 'Escape') { e.preventDefault(); closeBookmarkPanel(); }
+            return;
+        }
+        if (!renameDialog.classList.contains('hidden') || !autoRestoreDialog.classList.contains('hidden') || !qrOverlay.classList.contains('hidden')) {
+            return;
+        }
+
+        // Ctrl+S 导出
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); exportText(); return; }
+        // Ctrl+O 导入
+        if ((e.ctrlKey || e.metaKey) && e.key === 'o') { e.preventDefault(); triggerImport(); return; }
+        // Ctrl+D 切换方向
+        if ((e.ctrlKey || e.metaKey) && e.key === 'd') { e.preventDefault(); toggleDirection(); return; }
+
+        switch (e.key) {
+            case ' ': e.preventDefault(); togglePlay(); break;
+            case 'ArrowUp':
+                e.preventDefault();
+                state.speedMultiplier = Math.min(3, +(state.speedMultiplier + 0.1).toFixed(1));
+                speedSlider.value = state.speedMultiplier;
+                updateSpeedDisplay(); saveSettings();
+                if (state.isPlaying) statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+                resetToolbarTimer();
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                state.speedMultiplier = Math.max(0.5, +(state.speedMultiplier - 0.1).toFixed(1));
+                speedSlider.value = state.speedMultiplier;
+                updateSpeedDisplay(); saveSettings();
+                if (state.isPlaying) statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+                resetToolbarTimer();
+                break;
+            case 'f': case 'F': e.preventDefault(); toggleMirror(); break;
+            case 'b': case 'B':
+                if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+                    e.preventDefault();
+                    if (bookmarkPanel.classList.contains('hidden')) openBookmarkPanel();
+                    else closeBookmarkPanel();
+                }
+                break;
+            case 'Escape':
+                e.preventDefault();
+                if (!bookmarkPanel.classList.contains('hidden')) closeBookmarkPanel();
+                else if (!editorPanel.classList.contains('hidden')) closeEditor();
+                else toggleToolbar();
+                break;
+            case 'r': case 'R':
+                if (!e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); resetAll(); }
+                break;
+        }
+    });
+
+    // ========== 窗口 resize ==========
+    var resizeDebounce;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeDebounce);
+        resizeDebounce = setTimeout(function() {
+            updateMaxScroll();
+            if (state.scrollPos > state.maxScroll) state.scrollPos = state.maxScroll;
+            applyScroll();
+            renderBookmarkIndicators();
+            if (state.camActive) positionCameraPip();
+        }, 150);
+    });
+
+    // ========== 屏幕中央点击切换工具栏 ==========
+    viewport.addEventListener('click', function(e) {
+        if (e.detail === 2) return;
+        if (e.target === viewport || e.target === teleText || e.target.classList.contains('guide-line')) {
+            toggleToolbar();
+        }
+    });
+
+    viewport.addEventListener('dblclick', function(e) {
+        toggleFullscreen();
+    });
+
+    // ========== 鼠标滚轮滚动 ==========
+    viewport.addEventListener('wheel', function(e) {
+        if (!editorPanel.classList.contains('hidden')) return;
+        if (!bookmarkPanel.classList.contains('hidden')) return;
+        if (state.isCountingDown) return;
+        if (state.maxScroll <= 0) return;
+        if (gesture.mode !== 'idle') return;
+
+        e.preventDefault();
+
+        var delta = e.deltaY;
+        if (e.deltaMode === 1) delta *= 16;
+        else if (e.deltaMode === 2) delta *= viewport.clientHeight;
+
+        if (state.scrollDirection === 'down') delta = -delta;
+
+        var step = Math.sign(delta) * Math.min(Math.abs(delta) * 0.3, 30);
+        state.scrollPos = Math.max(0, Math.min(state.maxScroll, state.scrollPos + step));
+        applyScroll();
+
+        if (!state.isPlaying) {
+            resetToolbarTimer();
+            statusText.textContent = '手动滚动';
+        }
+    }, { passive: false });
+
+    // ========== 完整触屏手势系统 ==========
+    var gesture = {
+        mode: 'idle',
+        wasPlaying: false,
+        dragStartY: 0, dragStartScroll: 0,
+        dragLastY: 0, dragVelocity: 0, dragLastTime: 0,
+        pinchStartDist: 0, pinchStartFontSize: 0, pinchMinDist: 30,
+        lastTapTime: 0,
+        tapTimeout: null,
+    };
+
+    function getPinchDistance(touches) {
+        var dx = touches[0].clientX - touches[1].clientX;
+        var dy = touches[0].clientY - touches[1].clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    var inertiaRAF = null;
+    function startInertia(velocity) {
+        if (Math.abs(velocity) < 0.015) { endInertia(); return; }
+        cancelInertia();
+        var v = velocity;
+        var friction = 0.955;
+        var minV = 0.003;
+
+        function step() {
+            if (Math.abs(v) < minV) { endInertia(); return; }
+            state.scrollPos = Math.max(0, Math.min(state.maxScroll, state.scrollPos + v * 16));
+            applyScroll();
+            v *= friction;
+            inertiaRAF = requestAnimationFrame(step);
+        }
+        inertiaRAF = requestAnimationFrame(step);
+    }
+
+    function cancelInertia() {
+        if (inertiaRAF) { cancelAnimationFrame(inertiaRAF); inertiaRAF = null; }
+    }
+
+    function endInertia() {
+        cancelInertia();
+        if (gesture.mode === 'idle' && gesture.wasPlaying && !state.isPlaying) {
+            state.lastTime = performance.now();
+            state.isPlaying = true;
+            btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u23F8</span><span class="btn-label">暂停</span>';
+            btnPlay.classList.add('active');
+            statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+            loop();
+        }
+        gesture.mode = 'idle';
+    }
+
+    viewport.addEventListener('touchstart', function(e) {
+        cancelInertia();
+        var count = e.touches.length;
+
+        if (count === 1) {
+            gesture.mode = 'single-drag';
+            gesture.wasPlaying = state.isPlaying;
+            // 播放时不暂停，仅微调滚动位置
+            if (!state.isPlaying) pause();
+            gesture.dragStartY = e.touches[0].clientY;
+            gesture.dragStartScroll = state.scrollPos;
+            gesture.dragLastY = e.touches[0].clientY;
+            gesture.dragLastTime = performance.now();
+            gesture.dragVelocity = 0;
+            statusText.textContent = state.isPlaying
+                ? '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)'
+                : '手动滚动中...';
+        } else if (count >= 2) {
+            gesture.mode = 'pinch';
+            gesture.wasPlaying = state.isPlaying;
+            // 播放时捏合不暂停
+            if (!state.isPlaying) pause();
+            gesture.pinchStartDist = getPinchDistance(e.touches);
+            gesture.pinchStartFontSize = state.fontSize;
+            statusText.textContent = '捏合调整字号...';
+        }
+    }, { passive: false });
+
+    viewport.addEventListener('touchmove', function(e) {
+        if (gesture.mode === 'idle') return;
+
+        if (gesture.mode === 'single-drag' && e.touches.length === 1) {
+            e.preventDefault();
+            var now = performance.now();
+            var currentY = e.touches[0].clientY;
+            var deltaY = gesture.dragStartY - currentY;
+
+            // 下滚模式下拖拽方向反转
+            if (state.scrollDirection === 'down') deltaY = -deltaY;
+
+            state.scrollPos = Math.max(0, Math.min(state.maxScroll,
+                gesture.dragStartScroll + deltaY * 1.25));
+
+            var dt = now - gesture.dragLastTime;
+            if (dt > 3) {
+                gesture.dragVelocity = (gesture.dragLastY - currentY) / dt * 1.25;
+            }
+            gesture.dragLastY = currentY;
+            gesture.dragLastTime = now;
+            applyScroll();
+        } else if (gesture.mode === 'pinch' && e.touches.length >= 2) {
+            e.preventDefault();
+            var dist = getPinchDistance(e.touches);
+            if (gesture.pinchStartDist < gesture.pinchMinDist) return;
+
+            var ratio = dist / gesture.pinchStartDist;
+            var newSize = Math.round(gesture.pinchStartFontSize * Math.sqrt(ratio));
+            var clamped = Math.max(20, Math.min(100, newSize));
+
+            if (clamped !== state.fontSize) {
+                state.fontSize = clamped;
+                fontSizeSlider.value = clamped;
+                fontSizeLabel.textContent = clamped;
+                teleText.style.fontSize = clamped + 'px';
+                saveSettings();
+                updateMaxScroll();
+                if (state.scrollPos > state.maxScroll) state.scrollPos = state.maxScroll;
+                applyScroll();
+                statusText.textContent = '字号: ' + clamped + 'px';
+            }
+        }
+    }, { passive: false });
+
+    viewport.addEventListener('touchend', function(e) {
+        if (gesture.mode === 'idle') return;
+
+        if (gesture.mode === 'single-drag') {
+            if (e.touches.length === 0) {
+                gesture.mode = 'idle';
+                // 播放中拖拽结束：不启惯性，让自动播放自然接管
+                if (gesture.wasPlaying) {
+                    cancelInertia();
+                    statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+                } else {
+                    var v = gesture.dragVelocity;
+                    if (Math.abs(v) > 0.02) { startInertia(v); }
+                    else { endInertia(); }
+                }
+            } else if (e.touches.length >= 2) {
+                gesture.mode = 'pinch';
+                gesture.pinchStartDist = getPinchDistance(e.touches);
+                gesture.pinchStartFontSize = state.fontSize;
+                statusText.textContent = '捏合调整字号...';
+            }
+        } else if (gesture.mode === 'pinch') {
+            if (e.touches.length < 2) {
+                if (e.touches.length === 1) {
+                    gesture.mode = 'single-drag';
+                    gesture.dragStartY = e.touches[0].clientY;
+                    gesture.dragStartScroll = state.scrollPos;
+                    gesture.dragLastY = e.touches[0].clientY;
+                    gesture.dragLastTime = performance.now();
+                    gesture.dragVelocity = 0;
+                    statusText.textContent = '手动滚动中...';
+                } else {
+                    gesture.mode = 'idle';
+                    endInertia();
+                }
+            }
+        }
+
+        var now = Date.now();
+        if (now - gesture.lastTapTime < 350) {
+            toggleFullscreen();
+            gesture.lastTapTime = 0;
+        } else {
+            gesture.lastTapTime = now;
+        }
+    }, { passive: false });
+
+    viewport.addEventListener('touchcancel', function() {
+        cancelInertia();
+        gesture.mode = 'idle';
+        endInertia();
+    });
+
+    // ========== 暴露到全局 ==========
+    window.togglePlay = togglePlay;
+    window.toggleEditor = toggleEditor;
+    window.updateSpeed = updateSpeed;
+    window.updateFontSize = updateFontSize;
+    window.updateColors = updateColors;
+    window.updateLetterSpacing = updateLetterSpacing;
+    window.updateLineHeight = updateLineHeight;
+    window.updateFont = updateFont;
+    window.toggleDirection = toggleDirection;
+    window.toggleMask = toggleMask;
+    window.toggleMirror = toggleMirror;
+    window.toggleFullscreen = toggleFullscreen;
+    window.applyText = applyText;
+    window.pasteFromClipboard = pasteFromClipboard;
+    window.resetAll = resetAll;
+    window.confirmReset = confirmReset;
+    window.addBookmark = addBookmark;
+    window.jumpToBookmark = jumpToBookmark;
+    window.removeBookmark = removeBookmark;
+    window.closeBookmarkPanel = closeBookmarkPanel;
+    window.startCountdown = startCountdown;
+    window.toggleToolbar = toggleToolbar;
+    window.toggleCamera = toggleCamera;
+    window.switchCamera = switchCamera;
+    window.requestCamera = requestCamera;
+    window.denyCamera = denyCamera;
+    window.switchScript = switchScript;
+    window.newScript = newScript;
+    window.renameScript = renameScript;
+    window.deleteScript = deleteScript;
+    window.closeRenameDialog = closeRenameDialog;
+    window.doRename = doRename;
+    window.triggerImport = triggerImport;
+    window.handleFileImport = handleFileImport;
+    window.exportText = exportText;
+    window.openQROverlay = openQROverlay;
+    window.closeQROverlay = closeQROverlay;
+    window.confirmAutoRestore = confirmAutoRestore;
+    window.dismissAutoRestore = dismissAutoRestore;
+
+    // ========== 语音识别（Vosk 离线） ==========
+    var voiceState = {
+        active: false,
+        model: null,
+        recognizer: null,
+        audioContext: null,
+        mediaStream: null,
+        processorNode: null,
+        lastResultTime: 0,
+        silenceTimer: null,
+        downloadAborted: false,
+    };
+
+    var VOICE_MODEL_URL = 'https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip';
+
+    function setVoiceDot(color) {
+        var dot = $('voiceStatusDot');
+        dot.className = 'voice-status-dot';
+        if (color) {
+            dot.classList.add('active');
+            dot.classList.add(color);
+        }
+    }
+
+    function showVoiceBar(text) {
+        var bar = $('voiceRecognizeBar');
+        bar.textContent = text;
+        bar.classList.add('active');
+        clearTimeout(voiceState._barTimer);
+        voiceState._barTimer = setTimeout(function() { bar.classList.remove('active'); }, 3000);
+    }
+
+    function updateVoiceProgress(pct, msg) {
+        $('voiceProgressFill').style.width = pct + '%';
+        $('voiceProgressPercent').textContent = Math.round(pct) + '%';
+        if (msg) $('voiceDownloadMsg').textContent = msg;
+    }
+
+    function showVoiceDownloadOverlay() {
+        $('voiceDownloadOverlay').classList.remove('hidden');
+        updateVoiceProgress(0, '正在从 CDN 下载语音模型（约 42MB），仅首次需要。后续将缓存到本地，秒开。');
+        $('voiceCancelBtn').textContent = '取消';
+        $('voiceCancelBtn').onclick = cancelVoiceDownload;
+        voiceState.downloadAborted = false;
+    }
+
+    function hideVoiceDownloadOverlay() {
+        $('voiceDownloadOverlay').classList.add('hidden');
+    }
+
+    function cancelVoiceDownload() {
+        voiceState.downloadAborted = true;
+        hideVoiceDownloadOverlay();
+        stopVoiceRecognition();
+        statusText.textContent = '语音模型下载已取消';
+    }
+
+    // 下载并加载 Vosk 模型
+    async function loadVoiceModel() {
+        if (voiceState.model) return voiceState.model;
+        if (typeof Vosk === 'undefined') {
+            statusText.textContent = 'Vosk 库加载失败，请检查网络连接';
+            return null;
+        }
+
+        showVoiceDownloadOverlay();
+
+        try {
+            voiceState.downloadAborted = false;
+
+            // 使用 vosk-browser 的 createModel，支持进度回调
+            var model = await Vosk.createModel(
+                VOICE_MODEL_URL,
+                function(progress) {
+                    // progress: { percent, loaded, total }
+                    if (voiceState.downloadAborted) {
+                        throw new Error('aborted');
+                    }
+                    var pct = progress.percent || 0;
+                    updateVoiceProgress(pct, '正在下载语音模型... ' + Math.round(progress.loaded / 1048576) + 'MB / ' + Math.round((progress.total || 0) / 1048576) + 'MB');
+                }
+            );
+
+            if (voiceState.downloadAborted) {
+                throw new Error('aborted');
+            }
+
+            hideVoiceDownloadOverlay();
+            voiceState.model = model;
+            statusText.textContent = '语音模型加载完成';
+            return model;
+        } catch (e) {
+            hideVoiceDownloadOverlay();
+            if (e.message !== 'aborted') {
+                statusText.textContent = '语音模型加载失败: ' + e.message;
+                setVoiceDot('red');
+            }
+            return null;
+        }
+    }
+
+    // 开始麦克风识别
+    async function startVoiceRecognition() {
+        if (voiceState.active) return;
+
+        // 检查浏览器支持
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            statusText.textContent = '当前浏览器不支持麦克风，请使用 Chrome/Edge';
+            return;
+        }
+
+        setVoiceDot('yellow');
+        statusText.textContent = '正在初始化语音识别...';
+
+        try {
+            // 请求麦克风权限
+            var stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            voiceState.mediaStream = stream;
+        } catch (e) {
+            setVoiceDot('red');
+            statusText.textContent = '麦克风权限被拒绝，请在浏览器设置中允许访问麦克风';
+            return;
+        }
+
+        // 加载模型
+        var model = await loadVoiceModel();
+        if (!model) {
+            if (voiceState.mediaStream) { voiceState.mediaStream.getTracks().forEach(function(t) { t.stop(); }); voiceState.mediaStream = null; }
+            return;
+        }
+
+        try {
+            // 创建识别器
+            var recognizer = new model.KaldiRecognizer(16000);
+            voiceState.recognizer = recognizer;
+
+            // 监听识别结果
+            recognizer.on('result', function(text) {
+                onVoiceResult(text);
+            });
+            recognizer.on('partialresult', function(text) {
+                onVoicePartial(text);
+            });
+
+            // 设置音频处理
+            var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            voiceState.audioContext = audioContext;
+
+            var source = audioContext.createMediaStreamSource(voiceState.mediaStream);
+
+            // 使用 ScriptProcessorNode 处理音频（兼容性好）
+            var processor = audioContext.createScriptProcessor(4096, 1, 1);
+            voiceState.processorNode = processor;
+
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+
+            processor.onaudioprocess = function(e) {
+                if (!voiceState.active || !voiceState.recognizer) return;
+                var inputData = e.inputBuffer.getChannelData(0);
+                // 将 Float32Array 转为 Int16Array
+                var intData = new Int16Array(inputData.length);
+                for (var i = 0; i < inputData.length; i++) {
+                    intData[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
+                }
+                voiceState.recognizer.acceptWaveform(intData);
+            };
+
+            voiceState.active = true;
+            setVoiceDot('green');
+            $('btnVoice').classList.add('active');
+            statusText.textContent = '语音识别已开启，请开始朗读';
+
+        } catch (e) {
+            setVoiceDot('red');
+            statusText.textContent = '语音识别启动失败: ' + e.message;
+            stopVoiceRecognition();
+        }
+    }
+
+    // 停止语音识别
+    function stopVoiceRecognition() {
+        voiceState.active = false;
+
+        if (voiceState.processorNode) {
+            try { voiceState.processorNode.disconnect(); } catch(e) {}
+            voiceState.processorNode = null;
+        }
+        if (voiceState.audioContext) {
+            try { voiceState.audioContext.close(); } catch(e) {}
+            voiceState.audioContext = null;
+        }
+        if (voiceState.mediaStream) {
+            voiceState.mediaStream.getTracks().forEach(function(t) { t.stop(); });
+            voiceState.mediaStream = null;
+        }
+        if (voiceState.recognizer) {
+            try { voiceState.recognizer.removeAllListeners(); } catch(e) {}
+            voiceState.recognizer = null;
+        }
+
+        setVoiceDot(null);
+        $('btnVoice').classList.remove('active');
+    }
+
+    // 处理识别结果（完整句子）
+    function onVoiceResult(text) {
+        if (!text || !voiceState.active) return;
+        voiceState.lastResultTime = performance.now();
+        showVoiceBar('识别: ' + text);
+        matchAndScroll(text);
+    }
+
+    // 处理部分识别结果
+    function onVoicePartial(text) {
+        if (!text || !voiceState.active) return;
+        voiceState.lastResultTime = performance.now();
+        showVoiceBar('识别中: ' + text);
+        // 也用 partial 结果做匹配，更实时
+        matchAndScroll(text);
+    }
+
+    // 在脚本中匹配识别文字并滚动
+    function matchAndScroll(recognizedText) {
+        if (!recognizedText || !recognizedText.trim()) return;
+
+        var scriptText = teleText.textContent || '';
+        if (!scriptText.trim()) return;
+
+        var cleanScript = scriptText.replace(/\s+/g, '');
+        var cleanRecognized = recognizedText.replace(/\s+/g, '');
+
+        if (!cleanRecognized) return;
+
+        // 取最近 10-20 个字符做匹配
+        var searchText = cleanRecognized.slice(-20);
+
+        // 最长子串匹配：在脚本中找最匹配的位置
+        var bestPos = findBestMatchPosition(cleanScript, searchText);
+        if (bestPos < 0) return;
+
+        // 将字符位置转换为 scrollPos
+        // 估算：每行约 N 个字符，根据字体大小和容器宽度估算
+        var charsPerLine = estimateCharsPerLine();
+        var lineHeightPx = parseFloat(getComputedStyle(teleText).lineHeight) || (state.fontSize * state.lineHeight);
+        var targetLine = Math.floor(bestPos / charsPerLine);
+        var targetScrollPos = targetLine * lineHeightPx;
+
+        // 平滑滚动到目标位置（不改变播放/暂停状态）
+        smoothScrollTo(targetScrollPos);
+    }
+
+    // 估算每行字符数
+    function estimateCharsPerLine() {
+        var vpWidth = viewport.clientWidth * 0.9; // 左右各留 5%
+        var charWidth = state.fontSize * 0.6; // 中文字符宽度估算
+        return Math.floor(vpWidth / charWidth);
+    }
+
+    // 最长子串匹配，找到最佳位置
+    function findBestMatchPosition(script, query) {
+        // 先尝试直接包含匹配
+        var pos = script.indexOf(query);
+        if (pos >= 0) return pos;
+
+        // 逐步缩短查询字符串，找最长匹配
+        for (var len = query.length; len >= 4; len--) {
+            for (var start = 0; start <= query.length - len; start++) {
+                var sub = query.substring(start, start + len);
+                var p = script.indexOf(sub);
+                if (p >= 0) return p;
+            }
+        }
+        return -1;
+    }
+
+    // 平滑滚动到目标位置
+    function smoothScrollTo(targetPos) {
+        if (state.maxScroll <= 0) return;
+
+        targetPos = Math.max(0, Math.min(state.maxScroll, targetPos));
+
+        // 如果正在播放，暂停自动滚动，临时用语音控制
+        var wasPlaying = state.isPlaying;
+        // 不修改播放状态，只调整 scrollPos
+
+        // 使用 requestAnimationFrame 平滑过渡
+        var startPos = state.scrollPos;
+        var diff = targetPos - startPos;
+        if (Math.abs(diff) < 5) {
+            state.scrollPos = targetPos;
+            applyScroll();
+            return;
+        }
+
+        var duration = 300; // ms
+        var startTime = performance.now();
+
+        function animate(now) {
+            var elapsed = now - startTime;
+            var t = Math.min(1, elapsed / duration);
+            // ease-out
+            t = t * (2 - t);
+            state.scrollPos = startPos + diff * t;
+            applyScroll();
+            if (t < 1) {
+                requestAnimationFrame(animate);
+            }
+        }
+        requestAnimationFrame(animate);
+    }
+
+    // 切换语音识别
+    async function toggleVoiceRecognition() {
+        if (voiceState.active) {
+            stopVoiceRecognition();
+            statusText.textContent = '语音识别已关闭';
+        } else {
+            // 首次使用提示
+            if (!localStorage.getItem('tp_voice_hint_shown')) {
+                alert('语音跟随功能说明：\n\n1. 需下载中文语音模型（约 42MB），仅首次需要\n2. 模型下载后缓存到浏览器，后续秒开\n3. 请允许麦克风权限\n4. 开始朗读后，提词器会自动跟随你的语速滚动\n\n提示：播放状态和暂停状态均可语音跟随。');
+                localStorage.setItem('tp_voice_hint_shown', '1');
+            }
+            await startVoiceRecognition();
+        }
+    }
+
+    // 暴露到全局
+    window.toggleVoiceRecognition = toggleVoiceRecognition;
+    window.cancelVoiceDownload = cancelVoiceDownload;
+
+    init();
+})();
+</script>
+</body>
+</html>
