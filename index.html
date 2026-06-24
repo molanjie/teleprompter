@@ -155,6 +155,27 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
 /* ===== 全屏模式 ===== */
 body.fullscreen .toolbar { padding-top: 24px; }
 
+/* ===== 遥控连接状态 ===== */
+#remoteStatusDot {
+    display: none;
+    align-items: center; gap: 2px;
+    cursor: pointer; padding: 2px 6px;
+    border-radius: 10px; background: rgba(34,197,94,0.15);
+    transition: opacity 0.3s;
+}
+#remoteStatusDot.show { display: flex; }
+#remoteStatusDot .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%; background: #22c55e;
+    box-shadow: 0 0 6px rgba(34,197,94,0.6);
+    animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+#remoteStatusDot .count { font-size: 11px; color: #22c55e; font-weight: bold; }
+
 /* ===== 书签标记 ===== */
 .bookmark-indicator {
     position: absolute; left: 0; right: 0; height: 3px;
@@ -622,6 +643,10 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             <span style="font-size:13px;line-height:1;">📱</span>
             <span class="btn-label">遥控</span>
         </button>
+        <span id="remoteStatusDot" onclick="openQROverlay()" title="遥控已连接">
+            <span class="dot"></span>
+            <span class="count" id="remoteCount">1</span>
+        </span>
     </div>
 
     <div class="toolbar-group">
@@ -889,6 +914,8 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     const remotePanel         = $('remotePanel');
     const remoteStatus        = $('remoteStatus');
     const remoteSpeed         = $('remoteSpeed');
+    const remoteStatusDot     = $('remoteStatusDot');
+    const remoteCount         = $('remoteCount');
     const autoRestoreDialog   = $('autoRestoreDialog');
     const renameDialog        = $('renameDialog');
     const renameInput         = $('renameInput');
@@ -1358,14 +1385,21 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                         execRemoteCmd(data.action);
                     } else if (data.type === 'join_notify') {
                         qrStatus.textContent = '已连接（' + data.count + ' 台设备）';
+                        // 遥控端连入时自动关闭 QR 浮层，显示状态点
+                        if (data.count >= 2 && !qrOverlay.classList.contains('hidden')) {
+                            closeQROverlay();
+                        }
+                        updateRemoteDot(data.count);
                     }
                 } catch (ex) {}
             };
             ws.onerror = function() {
                 qrStatus.textContent = '中继连接失败';
+                updateRemoteDot(0);
             };
             ws.onclose = function() {
                 state.ws = null;
+                updateRemoteDot(0);
                 // 自动重连：QR浮层未关闭时持续重连
                 if (!qrOverlay.classList.contains('hidden') && state._wsRoom) {
                     qrStatus.textContent = '连接断开，3秒后重连...';
@@ -1401,6 +1435,15 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     function closeQROverlay() {
         qrOverlay.classList.add('hidden');
         // 保持 WebSocket 连接，关闭浮层后仍可接收遥控指令
+    }
+
+    function updateRemoteDot(count) {
+        if (count >= 2) {
+            remoteStatusDot.classList.add('show');
+            remoteCount.textContent = count;
+        } else {
+            remoteStatusDot.classList.remove('show');
+        }
     }
 
     // 简易 QR 码绘制（仅支持短 URL）
