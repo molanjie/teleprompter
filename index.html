@@ -27,6 +27,7 @@
     --font-base: 40px;
     --transition: 0.2s ease;
     --toolbar-height: 56px;
+    --bg-card: #1c2128;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -294,38 +295,53 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 /* ===== 遥控面板（手机端） ===== */
 .remote-panel {
     position: fixed; inset: 0; z-index: 70; background: var(--bg);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 20px; gap: 20px;
+    display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top, 12px) 16px env(safe-area-inset-bottom, 12px) 16px;
 }
 .remote-panel.hidden { display: none; }
-.remote-panel h2 { font-size: 22px; font-weight: 600; color: var(--accent); }
-.remote-panel .remote-status { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
-.remote-panel .remote-btn {
-    width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--border);
-    background: var(--surface); color: var(--text); font-size: 28px;
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-    transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+.remote-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 4px 10px 4px; flex-shrink: 0;
 }
-.remote-panel .remote-btn:active { transform: scale(0.9); background: var(--accent); }
-#remotePlayBtn { background: transparent !important; }
-.remote-panel .remote-row { display: flex; gap: 16px; align-items: center; }
-.remote-panel .remote-speed-label { font-size: 14px; color: var(--text); min-width: 50px; text-align: center; }
+.remote-header h2 { font-size: 18px; font-weight: 600; color: var(--accent); }
+.remote-header .remote-status { font-size: 12px; color: var(--text-dim); }
 .remote-text-area {
-    margin-top: 12px; padding: 10px 12px;
-    background: var(--bg-card); border-radius: 10px;
-    max-height: 160px; overflow-y: auto;
+    flex: 1; min-height: 0;
+    margin: 4px 0;
+    padding: 14px 14px;
+    background: var(--bg-card); border-radius: 12px;
+    overflow-y: auto;
     border: 1px solid var(--border);
+    -webkit-overflow-scrolling: touch;
 }
 .remote-text-line {
-    font-size: 13px; line-height: 1.8; color: var(--text-dim);
+    font-size: 15px; line-height: 2.2; color: var(--text-dim);
     padding: 2px 0; border-radius: 4px;
     white-space: pre-wrap; word-break: break-word;
 }
 .remote-text-line.remote-text-current {
-    color: var(--accent); font-weight: 600;
-    background: rgba(0,255,200,0.08); padding: 4px 6px;
-    font-size: 14px;
+    color: #fff; font-weight: 600;
+    background: rgba(88,166,255,0.15); padding: 4px 8px;
+    font-size: 16px; border-radius: 6px;
 }
+.remote-controls {
+    flex-shrink: 0; display: flex; flex-direction: column;
+    gap: 10px; padding-top: 8px;
+}
+.remote-panel .remote-row { display: flex; gap: 12px; align-items: center; justify-content: center; }
+.remote-panel .remote-btn {
+    width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 26px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none;
+}
+.remote-panel .remote-btn:active { transform: scale(0.88); background: var(--accent); color: #fff; border-color: var(--accent); }
+#remotePlayBtn {
+    width: 72px; height: 72px; font-size: 30px;
+    background: var(--accent) !important; color: #fff; border-color: var(--accent);
+}
+.remote-panel .remote-speed-label { font-size: 15px; font-weight: 600; color: var(--text); min-width: 52px; text-align: center; }
 
 /* ===== 横屏/竖屏适配 ===== */
 @media (orientation: landscape) {
@@ -538,25 +554,29 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 
 <!-- ===== 手机遥控面板 ===== -->
 <div class="remote-panel hidden" id="remotePanel">
-    <h2>提词器遥控</h2>
-    <div class="remote-status" id="remoteStatus">已连接</div>
-    <div class="remote-row">
-        <button class="remote-btn" onclick="sendRemoteCmd('speedDown')">−</button>
-        <span class="remote-speed-label" id="remoteSpeed">1.0x</span>
-        <button class="remote-btn" onclick="sendRemoteCmd('speedUp')">+</button>
-    </div>
-    <div class="remote-row">
-        <button class="remote-btn" onclick="sendRemoteCmd('fontDown')" style="font-size:22px;">A−</button>
-        <button class="remote-btn" id="remotePlayBtn" onclick="sendRemoteCmd('togglePlay')" style="font-size:36px;">▶</button>
-        <button class="remote-btn" onclick="sendRemoteCmd('fontUp')" style="font-size:22px;">A+</button>
-    </div>
-    <div class="remote-row">
-        <button class="remote-btn" onclick="sendRemoteCmd('prevLine')">▲</button>
-        <button class="remote-btn" onclick="sendRemoteCmd('reset')" style="font-size:18px;">↻</button>
-        <button class="remote-btn" onclick="sendRemoteCmd('nextLine')">▼</button>
+    <div class="remote-header">
+        <h2>提词器遥控</h2>
+        <div class="remote-status" id="remoteStatus">已连接</div>
     </div>
     <div class="remote-text-area" id="remoteTextArea">
         <div class="remote-text-line remote-text-current" id="remoteTextLine">等待同步...</div>
+    </div>
+    <div class="remote-controls">
+        <div class="remote-row">
+            <button class="remote-btn" onclick="sendRemoteCmd('speedDown')">−</button>
+            <span class="remote-speed-label" id="remoteSpeed">1.0x</span>
+            <button class="remote-btn" onclick="sendRemoteCmd('speedUp')">+</button>
+        </div>
+        <div class="remote-row">
+            <button class="remote-btn" onclick="sendRemoteCmd('fontDown')" style="font-size:22px;">A−</button>
+            <button class="remote-btn" id="remotePlayBtn" onclick="sendRemoteCmd('togglePlay')">▶</button>
+            <button class="remote-btn" onclick="sendRemoteCmd('fontUp')" style="font-size:22px;">A+</button>
+        </div>
+        <div class="remote-row">
+            <button class="remote-btn" onclick="sendRemoteCmd('prevLine')">▲</button>
+            <button class="remote-btn" onclick="sendRemoteCmd('reset')" style="font-size:18px;">↻</button>
+            <button class="remote-btn" onclick="sendRemoteCmd('nextLine')">▼</button>
+        </div>
     </div>
 </div>
 
@@ -1539,12 +1559,12 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                         if (data.type === 'state') {
                             remoteSpeed.textContent = (data.speed || 1.0).toFixed(1) + 'x';
                             var playBtn = $('remotePlayBtn');
-                            if (data.playing && playBtn) playBtn.textContent = '\u23F8';
+                            if (data.playing && playBtn) playBtn.textContent = '\u2590\u258C';
                             else if (playBtn) playBtn.textContent = '\u25B6';
                         } else if (data.type === 'sync') {
                             remoteSpeed.textContent = (data.speed || 1.0).toFixed(1) + 'x';
                             var playBtn = $('remotePlayBtn');
-                            if (data.playing && playBtn) playBtn.textContent = '\u23F8';
+                            if (data.playing && playBtn) playBtn.textContent = '\u2590\u258C';
                             else if (playBtn) playBtn.textContent = '\u25B6';
                             if (data.currentLine !== undefined) {
                                 var ctx = data.contextLines || [];
@@ -1595,16 +1615,17 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     function sendWSSync() {
         if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
         if (!state.maxScroll) return;
-        // 节流：最多每 300ms 发一次
         var now = performance.now();
         if (state._lastSync && now - state._lastSync < 300) return;
         state._lastSync = now;
-        // 计算当前所在行
-        var lineH = state.fontSize * state.lineHeight;
-        var curLineIdx = Math.round(state.scrollPos / lineH);
+
         var scriptLines = (teleText.textContent || '').split('\n');
+        var lineH = parseFloat(getComputedStyle(teleText).lineHeight) || (state.fontSize * state.lineHeight);
+        var curLineIdx = Math.round(state.scrollPos / lineH);
+        curLineIdx = Math.max(0, Math.min(scriptLines.length - 1, curLineIdx));
+
         var ctxLines = [];
-        var contextCount = 6; // 前后各6行
+        var contextCount = 6;
         var start = Math.max(0, curLineIdx - contextCount);
         var end = Math.min(scriptLines.length, curLineIdx + contextCount + 1);
         for (var i = start; i < end; i++) {
@@ -1825,7 +1846,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         applyScroll();
         state.isPlaying = true;
         state.lastTime = performance.now();
-        btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u23F8</span><span class="btn-label">暂停</span>';
+        btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u2590\u258C</span><span class="btn-label">暂停</span>';
         btnPlay.classList.add('active');
         statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
         sendWSState(); sendWSSync();
@@ -2488,6 +2509,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         pinchStartDist: 0, pinchStartFontSize: 0, pinchMinDist: 30,
         lastTapTime: 0,
         tapTimeout: null,
+        touchStartTime: 0,
     };
 
     function getPinchDistance(touches) {
@@ -2523,7 +2545,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         if (gesture.mode === 'idle' && gesture.wasPlaying && !state.isPlaying) {
             state.lastTime = performance.now();
             state.isPlaying = true;
-            btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u23F8</span><span class="btn-label">暂停</span>';
+            btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u2590\u258C</span><span class="btn-label">暂停</span>';
             btnPlay.classList.add('active');
             statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
             loop();
@@ -2545,6 +2567,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             gesture.dragLastY = e.touches[0].clientY;
             gesture.dragLastTime = performance.now();
             gesture.dragVelocity = 0;
+            gesture.touchStartTime = performance.now();
             statusText.textContent = state.isPlaying
                 ? '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)'
                 : '手动滚动中...';
@@ -2609,6 +2632,24 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 
         if (gesture.mode === 'single-drag') {
             if (e.touches.length === 0) {
+                // 检测tap（点击而非拖动）
+                var dragDist = Math.abs(gesture.dragStartY - gesture.dragLastY);
+                var tapDuration = performance.now() - (gesture.touchStartTime || 0);
+                if (dragDist < 10 && tapDuration < 300) {
+                    if (gesture.tapTimeout) {
+                        // 双击 → 全屏
+                        clearTimeout(gesture.tapTimeout);
+                        gesture.tapTimeout = null;
+                        toggleFullscreen();
+                    } else {
+                        gesture.tapTimeout = setTimeout(function() {
+                            gesture.tapTimeout = null;
+                            togglePlay();
+                        }, 350);
+                    }
+                    gesture.mode = 'idle';
+                    return;
+                }
                 gesture.mode = 'idle';
                 // 播放中拖拽结束：不启惯性，让自动播放自然接管
                 if (gesture.wasPlaying) {
@@ -2640,14 +2681,6 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                     endInertia();
                 }
             }
-        }
-
-        var now = Date.now();
-        if (now - gesture.lastTapTime < 350) {
-            toggleFullscreen();
-            gesture.lastTapTime = 0;
-        } else {
-            gesture.lastTapTime = now;
         }
     }, { passive: false });
 
