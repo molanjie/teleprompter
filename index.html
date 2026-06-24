@@ -2023,7 +2023,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         state.isPlaying = true;
         state.lastTime = performance.now();
         btnPlay.innerHTML = '<span class="btn-label">暂停</span>';
-        statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+        statusText.textContent = '自动滚动中';
         sendWSState(); sendWSSync();
         updateMaxScroll();
         estimateDuration();
@@ -2376,7 +2376,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         updateSpeedDisplay();
         saveSettings();
         statusText.textContent = state.isPlaying
-            ? '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)'
+            ? '自动滚动中'
             : '速度: ' + state.speedMultiplier.toFixed(1) + 'x';
         if (!state.isPlaying) estimateDuration();
         sendWSState();
@@ -2592,7 +2592,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                 state.speedMultiplier = Math.min(3, +(state.speedMultiplier + 0.1).toFixed(1));
                 speedSlider.value = state.speedMultiplier;
                 updateSpeedDisplay(); saveSettings();
-                if (state.isPlaying) statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+                if (state.isPlaying) statusText.textContent = '自动滚动中';
                 resetToolbarTimer();
                 break;
             case 'ArrowDown':
@@ -2600,7 +2600,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                 state.speedMultiplier = Math.max(0.5, +(state.speedMultiplier - 0.1).toFixed(1));
                 speedSlider.value = state.speedMultiplier;
                 updateSpeedDisplay(); saveSettings();
-                if (state.isPlaying) statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+                if (state.isPlaying) statusText.textContent = '自动滚动中';
                 resetToolbarTimer();
                 break;
             case 'f': case 'F': e.preventDefault(); toggleMirror(); break;
@@ -2720,7 +2720,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             state.lastTime = performance.now();
             state.isPlaying = true;
             btnPlay.innerHTML = '<span class="btn-label">暂停</span>';
-            statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+            statusText.textContent = '自动滚动中';
             loop();
         }
         gesture.mode = 'idle';
@@ -2742,7 +2742,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             gesture.dragVelocity = 0;
             gesture.touchStartTime = performance.now();
             statusText.textContent = state.isPlaying
-                ? '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)'
+                ? '自动滚动中'
                 : '手动滚动中...';
         } else if (count >= 2) {
             gesture.mode = 'pinch';
@@ -2827,7 +2827,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                 // 播放中拖拽结束：不启惯性，让自动播放自然接管
                 if (gesture.wasPlaying) {
                     cancelInertia();
-                    statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+                    statusText.textContent = '自动滚动中';
                 } else {
                     var v = gesture.dragVelocity;
                     if (Math.abs(v) > 0.02) { startInertia(v); }
