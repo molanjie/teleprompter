@@ -40,6 +40,8 @@ async def ws_handler(websocket):
                     "type": "join_notify",
                     "count": count
                 }, exclude=websocket)
+                # 通知加入者当前房间人数
+                await websocket.send(json.dumps({"type":"join_notify","count":count}))
                 print(f"[WS] join room {room} ({count} peers)")
 
             elif data.get("type") == "cmd" and current_room:

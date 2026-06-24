@@ -1346,6 +1346,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             var wsUrl = 'wss://' + RELAY_HOST;
             var ws = new WebSocket(wsUrl);
             state.ws = ws;
+            state._wsRoom = room;
             ws.onopen = function() {
                 ws.send(JSON.stringify({ type: 'join', room: room }));
                 qrStatus.textContent = '已就绪，扫码连接';
@@ -1364,10 +1365,23 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                 qrStatus.textContent = '中继连接失败';
             };
             ws.onclose = function() {
-                if (!qrOverlay.classList.contains('hidden')) {
-                    qrStatus.textContent = '连接已断开';
-                }
                 state.ws = null;
+                // 自动重连：QR浮层未关闭时持续重连
+                if (!qrOverlay.classList.contains('hidden') && state._wsRoom) {
+                    qrStatus.textContent = '连接断开，3秒后重连...';
+                    clearTimeout(state._reconnectTimer);
+                    state._reconnectTimer = setTimeout(function() {
+                        if (!qrOverlay.classList.contains('hidden')) {
+                            connectWSPublic(state._wsRoom);
+                        }
+                    }, 3000);
+                } else if (state._wsRoom) {
+                    // QR已关闭但房间还在，静默重连（保持后台遥控可用）
+                    clearTimeout(state._reconnectTimer);
+                    state._reconnectTimer = setTimeout(function() {
+                        connectWSPublic(state._wsRoom);
+                    }, 3000);
+                }
             };
         } catch (e) {
             qrStatus.textContent = '连接失败';
@@ -1375,6 +1389,8 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     }
 
     function closeWS() {
+        clearTimeout(state._reconnectTimer);
+        state._wsRoom = null;
         if (state.ws) {
             state.ws.onclose = null;
             state.ws.close();
