@@ -854,6 +854,8 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         maskEnabled: true,
     };
 
+    var DEFAULT_SCRIPT = '🎬 提词器使用教程\n\n1. 编辑文本\n点击左下角【编辑】按钮，粘贴或输入你的讲稿内容。支持多行文本，空行会自动分段。\n\n2. 调整样式\n使用底部工具栏调整字体大小、颜色、背景色、滚动速度和行间距。点击【设置】进入高级配置。\n\n3. 开始播放\n点击【播放】按钮开始滚动提词，也可使用【倒计时】3秒后自动开始。播放中支持语音跟随滚动。\n\n4. 手机遥控\n点击【遥控】按钮生成二维码，手机扫码后即可远程控制播放、调速、翻页。\n\n5. 摄像头画中画\n开启【摄像头】可在提词器上叠加摄像头画面，方便录制视频时保持眼神自然。\n\n6. 书签与讲稿管理\n点击【书签】可添加书签快速跳转。点击【讲稿】可保存/切换多份讲稿。\n\n7. 快捷键\n空格：播放/暂停\n上下箭头：调速\n左右箭头：调整字体大小\nF11：全屏';
+
     // ========== 讲稿数据存储 ==========
     function loadScripts() {
         try {
@@ -1085,7 +1087,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         // 加载新讲稿
         state.currentScriptId = newId;
         if (newId === '__current__') {
-            teleText.textContent = localStorage.getItem('teleprompter_script') || '';
+            teleText.textContent = localStorage.getItem('teleprompter_script') || DEFAULT_SCRIPT;
         } else {
             var scripts2 = loadScripts();
             var ns = scripts2.find(function(x) { return x.id === newId; });
@@ -1157,7 +1159,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         scripts = scripts.filter(function(x) { return x.id !== state.currentScriptId; });
         saveScripts(scripts);
         state.currentScriptId = '__current__';
-        teleText.textContent = localStorage.getItem('teleprompter_script') || '';
+        teleText.textContent = localStorage.getItem('teleprompter_script') || DEFAULT_SCRIPT;
         state.scrollPos = 0; state.bookmarks = [];
         updateMaxScroll(); applyScroll();
         renderBookmarkIndicators();
@@ -1274,7 +1276,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         var saved = localStorage.getItem('tp_autosave_text');
         var time = localStorage.getItem('tp_autosave_time');
         if (!saved || saved.trim() === '') return;
-        var currentText = localStorage.getItem('teleprompter_script') || teleText.textContent || '';
+        var currentText = localStorage.getItem('teleprompter_script') || teleText.textContent || DEFAULT_SCRIPT;
         if (saved.trim() === currentText.trim()) return;
         var savedTime = parseInt(time) || 0;
         var now = Date.now();
@@ -1723,7 +1725,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         refreshScriptSelector();
         var scriptText = '';
         if (state.currentScriptId === '__current__') {
-            scriptText = localStorage.getItem('teleprompter_script') || '';
+            scriptText = localStorage.getItem('teleprompter_script') || DEFAULT_SCRIPT;
         } else {
             var scripts = loadScripts();
             var s = scripts.find(function(x) { return x.id === state.currentScriptId; });
