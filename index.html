@@ -1426,6 +1426,11 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             var room = params.get('room');
             var host = location.hostname;
 
+            // 遥控页面禁止缩放
+            var vp = document.querySelector('meta[name="viewport"]');
+            if (!vp) { vp = document.createElement('meta'); vp.name = 'viewport'; document.head.appendChild(vp); }
+            vp.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+
             document.body.innerHTML = '';
             document.body.style.cssText = 'background:var(--bg);display:flex;align-items:center;justify-content:center;min-height:100vh;';
             remotePanel.classList.remove('hidden');
