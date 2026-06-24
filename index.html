@@ -1338,13 +1338,16 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         }
     }
 
+    var RELAY_HOST = 'teleprompter-relay.onrender.com';  // Render.com 免费中继，可自行替换
+
     function connectWSPublic(room) {
         closeWS();
         try {
-            var wsUrl = 'wss://free.blr2.piesocket.com/v3/teleprompter-' + room + '?api_key=VCXCEuvhGcBDP7XhiJJUDvR1e1D4eiVjgZ9VRiaV&notify_self=1';
+            var wsUrl = 'wss://' + RELAY_HOST;
             var ws = new WebSocket(wsUrl);
             state.ws = ws;
             ws.onopen = function() {
+                ws.send(JSON.stringify({ type: 'join', room: room }));
                 qrStatus.textContent = '已就绪，扫码连接';
             };
             ws.onmessage = function(e) {
@@ -1352,6 +1355,8 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                     var data = JSON.parse(e.data);
                     if (data.type === 'cmd') {
                         execRemoteCmd(data.action);
+                    } else if (data.type === 'join_notify') {
+                        qrStatus.textContent = '已连接（' + data.count + ' 台设备）';
                     }
                 } catch (ex) {}
             };
@@ -1419,16 +1424,14 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             try {
                 var wsUrl;
                 if (isPublicDeploy()) {
-                    wsUrl = 'wss://free.blr2.piesocket.com/v3/teleprompter-' + room + '?api_key=VCXCEuvhGcBDP7XhiJJUDvR1e1D4eiVjgZ9VRiaV&notify_self=1';
+                    wsUrl = 'wss://' + RELAY_HOST;
                 } else {
                     wsUrl = 'ws://' + host + ':8889';
                 }
                 var ws = new WebSocket(wsUrl);
                 state.ws = ws;
                 ws.onopen = function() {
-                    if (!isPublicDeploy()) {
-                        ws.send(JSON.stringify({ type: 'join', room: room }));
-                    }
+                    ws.send(JSON.stringify({ type: 'join', room: room }));
                     remoteStatus.textContent = '已连接到房间 ' + room;
                 };
                 ws.onmessage = function(e) {
