@@ -50,11 +50,12 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
-    background: rgba(22,27,34,0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    background: rgba(22,27,34,0.94);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-bottom: 1px solid rgba(48,54,61,0.6);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 1px 0 rgba(88,166,255,0.04);
     z-index: 15;
     flex-wrap: wrap;
     transform: translateY(-100%);
@@ -65,52 +66,78 @@ body {
 
 .toolbar-group {
     display: flex; align-items: center; gap: 4px;
-    padding: 0 6px; border-right: 1px solid var(--border);
+    padding: 0 6px; border-right: 1px solid rgba(48,54,61,0.4);
 }
 .toolbar-group:last-child { border-right: none; }
 
 .toolbar label {
     font-size: 11px; color: var(--text-dim); white-space: nowrap; font-weight: 500;
+    letter-spacing: 0.3px;
 }
 
 .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 4px;
     padding: 6px 12px;
-    border: 1px solid var(--border); border-radius: 7px;
+    border: 1px solid var(--border); border-radius: 8px;
     background: rgba(33,38,45,0.7); color: var(--text);
     font-size: 13px; font-weight: 500; cursor: pointer;
-    transition: all var(--transition); white-space: nowrap;
+    transition: all 0.18s cubic-bezier(0.25, 0.1, 0.25, 1); white-space: nowrap;
     min-height: 34px; min-width: 40px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    -webkit-user-select: none; user-select: none;
 }
-.btn:active { transform: scale(0.95); opacity: 0.8; }
-.btn:hover { border-color: var(--accent); background: #1f2937; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn.primary:hover { background: var(--accent-hover); }
-.btn.active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 10px rgba(88,166,255,0.3); }
+.btn:active { transform: scale(0.93); box-shadow: 0 0 12px rgba(88,166,255,0.25); }
+.btn:hover { border-color: var(--accent); background: rgba(31,41,55,0.8); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.btn.primary {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    box-shadow: 0 2px 10px rgba(88,166,255,0.25);
+}
+.btn.primary:hover { background: var(--accent-hover); box-shadow: 0 4px 16px rgba(88,166,255,0.35); }
+.btn.active {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    box-shadow: 0 0 16px rgba(88,166,255,0.4), 0 2px 6px rgba(88,166,255,0.2);
+}
 .btn.danger { border-color: var(--danger); color: var(--danger); }
+.btn.danger:hover { border-color: var(--danger-hover); color: var(--danger-hover); background: rgba(248,81,73,0.08); box-shadow: 0 0 10px rgba(248,81,73,0.15); }
+.btn.danger:active { box-shadow: 0 0 14px rgba(248,81,73,0.3); }
 
 select {
-    background: var(--slider-bg); color: var(--text); border: 1px solid var(--border);
-    border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: none; cursor: pointer;
-    max-width: 140px;
+    background: var(--slider-bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 10px; font-size: 12px; outline: none; cursor: pointer;
+    max-width: 140px; transition: border-color var(--transition), box-shadow var(--transition);
 }
-select:focus { border-color: var(--accent); }
+select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,0.1); }
+select:hover { border-color: rgba(88,166,255,0.5); }
 
 input[type="range"] {
-    -webkit-appearance: none; width: 80px; height: 5px;
+    -webkit-appearance: none; width: 80px; height: 6px;
     border-radius: 3px; background: var(--slider-bg); outline: none; cursor: pointer;
+    transition: opacity var(--transition);
 }
+input[type="range"]:hover { opacity: 0.9; }
 input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
     background: var(--accent); cursor: pointer; border: 2px solid var(--bg);
+    box-shadow: 0 2px 8px rgba(88,166,255,0.3);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+input[type="range"]::-webkit-slider-thumb:active {
+    box-shadow: 0 0 16px rgba(88,166,255,0.5); transform: scale(1.1);
+}
+input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 3px; background: var(--slider-bg);
 }
 
 input[type="color"] {
-    -webkit-appearance: none; width: 28px; height: 24px;
-    border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: transparent; padding: 1px;
+    -webkit-appearance: none; width: 28px; height: 26px;
+    border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+    background: transparent; padding: 1px;
+    transition: border-color var(--transition), box-shadow var(--transition);
 }
+input[type="color"]:hover { border-color: var(--accent); }
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
 
 /* ===== 主舞台 ===== */
 .main-stage {
@@ -121,6 +148,7 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
 .teleprompter-viewport {
     flex: 1; overflow: hidden; position: relative; background: var(--bg);
     touch-action: none; -webkit-overflow-scrolling: auto;
+    box-shadow: inset 0 0 80px rgba(88,166,255,0.015);
 }
 
 .teleprompter-text {
@@ -139,13 +167,14 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
 /* 引导线 */
 .guide-line {
     position: absolute; left: 0; right: 0; top: 50%;
-    height: 2px; background: var(--accent); opacity: 0.25;
+    height: 1.5px; background: var(--accent); opacity: 0.3;
     pointer-events: none; z-index: 2;
+    box-shadow: 0 0 12px rgba(88,166,255,0.5);
 }
 
 /* 边缘遮罩 */
 .edge-mask-top, .edge-mask-bottom {
-    position: absolute; left: 0; right: 0; height: 15%;
+    position: absolute; left: 0; right: 0; height: 18%;
     pointer-events: none; z-index: 6;
     transition: opacity 0.3s ease;
 }
@@ -159,44 +188,47 @@ body.fullscreen .toolbar { padding-top: 24px; }
 /* ===== 遥控连接状态 ===== */
 #remoteStatusDot {
     display: none;
-    align-items: center; gap: 2px;
-    cursor: pointer; padding: 2px 6px;
-    border-radius: 10px; background: rgba(34,197,94,0.15);
-    transition: opacity 0.3s;
+    align-items: center; gap: 4px;
+    cursor: pointer; padding: 3px 10px;
+    border-radius: 12px; background: rgba(34,197,94,0.12);
+    transition: opacity 0.3s, box-shadow 0.3s;
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.15);
 }
 #remoteStatusDot.show { display: flex; }
 #remoteStatusDot .dot {
-    width: 8px; height: 8px;
+    width: 9px; height: 9px;
     border-radius: 50%; background: #22c55e;
-    box-shadow: 0 0 6px rgba(34,197,94,0.6);
+    box-shadow: 0 0 8px rgba(34,197,94,0.6);
     animation: pulse-dot 2s infinite;
 }
 @keyframes pulse-dot {
     0%,100% { opacity: 1; }
-    50% { opacity: 0.4; }
+    50% { opacity: 0.35; }
 }
-#remoteStatusDot .count { font-size: 11px; color: #22c55e; font-weight: bold; }
+#remoteStatusDot .count { font-size: 11px; color: #22c55e; font-weight: 700; }
 
 /* ===== 书签标记 ===== */
 .bookmark-indicator {
     position: absolute; left: 0; right: 0; height: 3px;
-    background: var(--success); opacity: 0.7; z-index: 3;
+    background: var(--success); opacity: 0.8; z-index: 3;
     pointer-events: none;
     transition: opacity 0.15s;
+    box-shadow: 0 0 8px rgba(63,185,80,0.5);
 }
 
 /* ===== 倒计时覆盖层 ===== */
 .countdown-overlay {
     position: fixed; inset: 0; z-index: 50;
-    background: rgba(0,0,0,0.85); display: flex;
+    background: rgba(0,0,0,0.88); display: flex;
     align-items: center; justify-content: center;
     pointer-events: none; opacity: 0;
     transition: opacity 0.2s ease;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
 .countdown-overlay.active { opacity: 1; pointer-events: all; }
 .countdown-number {
-    font-size: 140px; font-weight: 700; color: #fff;
-    text-shadow: 0 0 60px rgba(88,166,255,0.6);
+    font-size: 160px; font-weight: 700; color: #fff;
+    text-shadow: 0 0 80px rgba(88,166,255,0.7), 0 0 160px rgba(88,166,255,0.3);
     animation: count-pop 0.35s ease-out;
 }
 @keyframes count-pop {
@@ -210,27 +242,29 @@ body.fullscreen .toolbar { padding-top: 24px; }
     position: absolute; inset: 0; background: var(--surface);
     display: flex; flex-direction: column; z-index: 20;
     transition: opacity 0.25s ease, visibility 0.25s ease;
+    border-radius: var(--radius);
 }
 .editor-panel.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
 .editor-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    padding: 12px 16px; border-bottom: 1px solid rgba(48,54,61,0.5); flex-shrink: 0;
     flex-wrap: wrap; gap: 8px;
+    background: rgba(22,27,34,0.5);
 }
-.editor-header h3 { font-size: 16px; font-weight: 600; }
+.editor-header h3 { font-size: 16px; font-weight: 600; letter-spacing: 0.3px; }
 
 .editor-body {
-    flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 0;
+    flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 0;
 }
 
 textarea {
     flex: 1; width: 100%; background: var(--bg); border: 1px solid var(--border);
-    border-radius: var(--radius); color: var(--text); font-size: 15px; font-family: inherit;
+    border-radius: var(--radius-sm); color: var(--text); font-size: 15px; font-family: inherit;
     line-height: 1.7; padding: 14px; resize: none; outline: none;
-    transition: border-color var(--transition);
+    transition: border-color var(--transition), box-shadow var(--transition);
 }
-textarea:focus { border-color: var(--accent); }
+textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,0.08); }
 textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 
 /* ===== 进度条 ===== */
@@ -240,22 +274,27 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 .progress-bar-fill {
     height: 100%; background: var(--accent);
     transition: width 0.08s linear; border-radius: 0 2px 2px 0;
+    box-shadow: 0 0 8px rgba(88,166,255,0.5);
+    position: relative;
 }
 
 /* ===== 底部状态栏 ===== */
 .status-bar {
-    display: flex; align-items: center; justify-content: center; gap: 12px;
-    padding: 4px 12px; background: rgba(22,27,34,0.85); border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    padding: 6px 16px; background: rgba(22,27,34,0.9); border-top: 1px solid rgba(48,54,61,0.5);
     flex-shrink: 0; font-size: 11px; color: var(--text-dim);
-    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    letter-spacing: 0.3px;
 }
 
 /* ===== 快捷提示 ===== */
 .shortcuts-hint {
-    position: fixed; bottom: 16px; right: 16px;
-    background: rgba(22,27,34,0.9); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 10px 14px; font-size: 11px; color: var(--text-dim); z-index: 30;
-    line-height: 1.8; pointer-events: none; max-width: 240px;
+    position: fixed; bottom: 20px; right: 20px;
+    background: rgba(22,27,34,0.92); border: 1px solid rgba(48,54,61,0.6); border-radius: var(--radius);
+    padding: 12px 16px; font-size: 11px; color: var(--text-dim); z-index: 30;
+    line-height: 1.9; pointer-events: none; max-width: 260px;
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.35);
     transition: opacity 0.8s ease;
 }
 .shortcuts-hint kbd {
@@ -268,13 +307,15 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 .dialog-overlay {
     position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.7);
     display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
 }
 .dialog-overlay.hidden { display: none; }
 .dialog-box {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 24px; max-width: 380px; width: 90%;
+    background: var(--surface); border: 1px solid rgba(48,54,61,0.6);
+    border-radius: var(--radius); padding: 28px 24px; max-width: 380px; width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
-.dialog-box h3 { font-size: 16px; margin-bottom: 10px; }
+.dialog-box h3 { font-size: 17px; margin-bottom: 10px; font-weight: 600; }
 .dialog-box p { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; line-height: 1.6; }
 .dialog-box .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
@@ -282,15 +323,17 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 .qr-overlay {
     position: fixed; inset: 0; z-index: 55; background: rgba(0,0,0,0.8);
     display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 }
 .qr-overlay.hidden { display: none; }
 .qr-dialog {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 24px; text-align: center; max-width: 320px; width: 90%;
+    background: var(--surface); border: 1px solid rgba(48,54,61,0.6); border-radius: var(--radius);
+    padding: 28px 24px; text-align: center; max-width: 340px; width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
 }
-.qr-dialog h3 { font-size: 16px; margin-bottom: 8px; }
-.qr-dialog p { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; }
-.qr-dialog canvas { display: block; margin: 0 auto; background: #fff; padding: 8px; border-radius: 8px; }
+.qr-dialog h3 { font-size: 17px; margin-bottom: 10px; font-weight: 600; }
+.qr-dialog p { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; }
+.qr-dialog canvas { display: block; margin: 0 auto; background: #fff; padding: 10px; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.25); }
 
 /* ===== 遥控面板（手机端） ===== */
 .remote-panel {
@@ -301,72 +344,123 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 .remote-panel.hidden { display: none; }
 .remote-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 8px 4px 10px 4px; flex-shrink: 0;
+    padding: 12px 6px 14px 6px; flex-shrink: 0;
 }
-.remote-header h2 { font-size: 18px; font-weight: 600; color: var(--accent); }
-.remote-header .remote-status { font-size: 12px; color: var(--text-dim); }
+.remote-header h2 { font-size: 18px; font-weight: 600; color: var(--accent); letter-spacing: 0.3px; }
+.remote-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--success);
+    background: rgba(63,185,80,0.1);
+    padding: 5px 12px; border-radius: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 0 1px rgba(63,185,80,0.1);
+}
+.remote-status::before {
+    content: ''; display: inline-block; flex-shrink: 0;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+    transition: all 0.3s ease;
+}
+.remote-status.connecting { color: #d29922; background: rgba(210,153,34,0.1); box-shadow: 0 0 0 1px rgba(210,153,34,0.1); }
+.remote-status.connecting::before { background: #d29922; box-shadow: 0 0 6px #d29922; }
+.remote-status.error { color: var(--danger); background: rgba(248,81,73,0.1); box-shadow: 0 0 0 1px rgba(248,81,73,0.1); }
+.remote-status.error::before { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+.remote-status.disconnected { color: var(--text-dim); background: rgba(139,148,158,0.08); box-shadow: 0 0 0 1px rgba(139,148,158,0.08); }
+.remote-status.disconnected::before { background: var(--text-dim); box-shadow: none; }
 .remote-text-viewport {
     flex: 1; min-height: 0;
-    margin: 4px 0;
-    position: relative; overflow: hidden;
+    margin: 6px 0;
+    position: relative; overflow-y: scroll; overflow-x: hidden;
     background: var(--bg);
-    border-radius: 12px;
-    border: 1px solid var(--border);
-}
-.remote-text-area {
-    position: absolute; left: 8px; right: 8px; top: 50%;
-    transform: translateY(-50%);
-    max-height: 100%;
-    overflow-y: auto; overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
+    border-radius: 14px;
+    border: 1px solid rgba(48,54,61,0.5);
+    box-shadow: inset 0 0 60px rgba(88,166,255,0.025), 0 2px 16px rgba(0,0,0,0.35);
     scrollbar-width: none; -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
 }
-.remote-text-area::-webkit-scrollbar { display: none; }
+.remote-text-viewport::-webkit-scrollbar { display: none; }
+.remote-text-area {
+    padding: 50vh 8px;
+    will-change: scroll-position;
+}
 .remote-text-line {
     font-size: 22px; line-height: 1.7;
-    color: var(--text-dim); padding: 2px 8px;
+    color: var(--text-dim); padding: 3px 10px;
     white-space: pre-wrap; word-break: break-word;
     transition: color 0.3s, font-size 0.3s;
 }
 .remote-text-line.remote-text-current {
-    color: #fff; font-weight: 700;
+    color: #fff; font-weight: 800;
     font-size: 26px;
-    background: linear-gradient(90deg, rgba(88,166,255,0.12), rgba(88,166,255,0.04));
+    background: linear-gradient(90deg, rgba(88,166,255,0.18), rgba(88,166,255,0.04) 60%, transparent);
     border-left: 3px solid var(--accent);
-    padding-left: 8px;
-    border-radius: 0 4px 4px 0;
+    padding-left: 10px;
+    border-radius: 0 6px 6px 0;
+    text-shadow: 0 0 20px rgba(88,166,255,0.2);
 }
 /* 手机端引导线 */
 .remote-guide-line {
     position: absolute; left: 8px; right: 8px; top: 50%;
-    height: 2px; background: var(--accent); opacity: 0.3;
+    height: 1.5px; background: var(--accent); opacity: 0.35;
     pointer-events: none; z-index: 2;
+    box-shadow: 0 0 14px rgba(88,166,255,0.55);
 }
 /* 手机端边缘遮罩 */
 .remote-edge-top, .remote-edge-bottom {
-    position: absolute; left: 0; right: 0; height: 18%;
+    position: absolute; left: 0; right: 0; height: 24%;
     pointer-events: none; z-index: 3;
 }
-.remote-edge-top { top: 0; background: linear-gradient(to bottom, var(--bg) 0%, transparent 100%); }
-.remote-edge-bottom { bottom: 0; background: linear-gradient(to top, var(--bg) 0%, transparent 100%); }
+.remote-edge-top { 
+    top: 0; 
+    background: linear-gradient(to bottom, var(--bg) 0%, rgba(13,17,23,0.85) 35%, transparent 100%); 
+}
+.remote-edge-bottom { 
+    bottom: 0; 
+    background: linear-gradient(to top, var(--bg) 0%, rgba(13,17,23,0.85) 35%, transparent 100%); 
+}
 .remote-controls {
     flex-shrink: 0; display: flex; flex-direction: column;
-    gap: 10px; padding-top: 8px;
+    gap: 12px; padding: 12px 4px 6px 4px;
+    border-top: 1px solid rgba(48,54,61,0.35);
+    margin-top: 4px;
 }
-.remote-panel .remote-row { display: flex; gap: 12px; align-items: center; justify-content: center; }
+.remote-panel .remote-row { display: flex; gap: 14px; align-items: center; justify-content: center; }
 .remote-panel .remote-btn {
-    width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--border);
-    background: var(--surface); color: var(--text); font-size: 26px;
+    width: 64px; height: 64px; border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 26px;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
-    transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    transition: all 0.18s cubic-bezier(0.25, 0.1, 0.25, 1);
+    -webkit-tap-highlight-color: transparent;
     -webkit-user-select: none; user-select: none;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.2);
 }
-.remote-panel .remote-btn:active { transform: scale(0.88); background: var(--accent); color: #fff; border-color: var(--accent); }
+.remote-panel .remote-btn:active {
+    transform: scale(0.88);
+    background: var(--accent); color: #fff; border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(88,166,255,0.4), 0 2px 6px rgba(0,0,0,0.3);
+}
 #remotePlayBtn {
-    width: 72px; height: 72px; font-size: 30px;
-    background: var(--accent) !important; color: #fff; border-color: var(--accent);
+    width: 74px; height: 74px; font-size: 32px;
+    background: var(--accent) !important; color: #fff; border-color: var(--accent) !important;
+    box-shadow: 0 4px 20px rgba(88,166,255,0.4), 0 2px 6px rgba(0,0,0,0.35);
 }
-.remote-panel .remote-speed-label { font-size: 15px; font-weight: 600; color: var(--text); min-width: 52px; text-align: center; }
+#remotePlayBtn:active {
+    transform: scale(0.85);
+    box-shadow: 0 0 30px rgba(88,166,255,0.6), 0 2px 10px rgba(0,0,0,0.45);
+}
+.remote-panel .remote-speed-label {
+    font-size: 15px; font-weight: 600; color: var(--text);
+    min-width: 58px; text-align: center;
+    background: var(--surface);
+    padding: 7px 16px; border-radius: 20px;
+    border: 1px solid rgba(48,54,61,0.5);
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+}
 
 /* ===== 横屏/竖屏适配 ===== */
 @media (orientation: landscape) {
@@ -405,13 +499,13 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     width: 160px; min-width: 100px; max-width: 350px;
     aspect-ratio: 4/3; border-radius: var(--radius);
     overflow: hidden; cursor: grab;
-    background: #000; border: 2px solid rgba(255,255,255,0.15);
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-    opacity: 0.5; transition: opacity 0.25s ease, border-color 0.25s ease;
+    background: #000; border: 2px solid rgba(255,255,255,0.12);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    opacity: 0.55; transition: opacity 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
     touch-action: none; will-change: left, top;
 }
 .camera-pip:hover,
-.camera-pip.dragging { opacity: 0.92; border-color: var(--accent); cursor: grabbing; }
+.camera-pip.dragging { opacity: 0.95; border-color: var(--accent); cursor: grabbing; box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 16px rgba(88,166,255,0.2); }
 .camera-pip.hidden { display: none; }
 
 .camera-pip video {
@@ -429,18 +523,18 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 .camera-pip.dragging .cam-controls { opacity: 1; }
 
 .camera-pip .cam-btn {
-    pointer-events: all; width: 26px; height: 26px; border: none; border-radius: 50%;
-    background: rgba(0,0,0,0.55); color: #fff; font-size: 12px;
+    pointer-events: all; width: 28px; height: 28px; border: none; border-radius: 50%;
+    background: rgba(0,0,0,0.5); color: #fff; font-size: 13px;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
-    margin-left: 4px; backdrop-filter: blur(4px); transition: background 0.15s;
+    margin-left: 4px; backdrop-filter: blur(6px); transition: background 0.15s, transform 0.1s;
 }
 .camera-pip .cam-btn:active { background: rgba(0,0,0,0.8); transform: scale(0.9); }
 
 .camera-pip .cam-resize {
     position: absolute; bottom: 0; right: 0;
-    width: 22px; height: 22px; cursor: nwse-resize;
+    width: 24px; height: 24px; cursor: nwse-resize;
     pointer-events: all; opacity: 0; transition: opacity 0.2s;
-    background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.35) 50%);
+    background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.45) 50%);
     border-radius: 0 0 var(--radius) 0;
 }
 .camera-pip:hover .cam-resize { opacity: 1; }
@@ -454,22 +548,24 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 .cam-permission-overlay {
     position: fixed; inset: 0; z-index: 55; background: rgba(0,0,0,0.7);
     display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
 }
 .cam-permission-overlay.hidden { display: none; }
 
 .cam-permission-dialog {
-    background: var(--surface); border: 1px solid var(--border);
+    background: var(--surface); border: 1px solid rgba(48,54,61,0.6);
     border-radius: var(--radius); padding: 28px 24px; text-align: center;
-    max-width: 320px; width: 90%;
+    max-width: 340px; width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
-.cam-permission-dialog h3 { font-size: 18px; margin-bottom: 12px; }
+.cam-permission-dialog h3 { font-size: 18px; margin-bottom: 12px; font-weight: 600; }
 .cam-permission-dialog p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; }
 
 /* ===== 语音识别状态 ===== */
 .voice-status-dot {
     position: fixed;
-    bottom: 32px; right: 16px;
-    width: 12px; height: 12px;
+    bottom: 36px; right: 16px;
+    width: 14px; height: 14px;
     border-radius: 50%;
     z-index: 25;
     pointer-events: none;
@@ -477,20 +573,20 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     opacity: 0;
 }
 .voice-status-dot.active { opacity: 1; }
-.voice-status-dot.green  { background: var(--success); box-shadow: 0 0 8px var(--success); }
-.voice-status-dot.yellow { background: #d29922;   box-shadow: 0 0 8px #d29922; }
-.voice-status-dot.red    { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+.voice-status-dot.green  { background: var(--success); box-shadow: 0 0 10px var(--success); }
+.voice-status-dot.yellow { background: #d29922;   box-shadow: 0 0 10px #d29922; }
+.voice-status-dot.red    { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
 
 /* 识别文字状态栏 */
 .voice-recognize-bar {
     position: fixed;
     bottom: 50px; left: 50%; transform: translateX(-50%);
-    background: rgba(22,27,34,0.88);
+    background: rgba(22,27,34,0.92);
     color: var(--text-dim);
     font-size: 13px;
-    padding: 5px 14px;
+    padding: 6px 16px;
     border-radius: 20px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(48,54,61,0.5);
     white-space: nowrap;
     max-width: 60vw;
     overflow: hidden;
@@ -498,6 +594,8 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     z-index: 25;
     pointer-events: none;
     opacity: 0;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
     transition: opacity 0.5s ease;
 }
 .voice-recognize-bar.active { opacity: 1; }
@@ -507,22 +605,25 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     position: fixed; inset: 0; z-index: 65;
     background: rgba(0,0,0,0.75);
     display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 }
 .voice-download-overlay.hidden { display: none; }
 .voice-download-box {
-    background: var(--surface); border: 1px solid var(--border);
+    background: var(--surface); border: 1px solid rgba(48,54,61,0.6);
     border-radius: var(--radius); padding: 28px 24px; text-align: center;
-    max-width: 360px; width: 90%;
+    max-width: 380px; width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
 }
-.voice-download-box h3 { font-size: 16px; margin-bottom: 8px; }
+.voice-download-box h3 { font-size: 17px; margin-bottom: 10px; font-weight: 600; }
 .voice-download-box p { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.6; }
 .voice-progress-wrap {
     width: 100%; height: 8px; background: var(--slider-bg);
-    border-radius: 4px; overflow: hidden; margin-bottom: 12px;
+    border-radius: 4px; overflow: hidden; margin-bottom: 14px;
 }
 .voice-progress-fill {
     height: 100%; width: 0%; background: var(--accent);
     border-radius: 4px; transition: width 0.3s ease;
+    box-shadow: 0 0 8px rgba(88,166,255,0.5);
 }
 .voice-download-actions { display: flex; gap: 10px; justify-content: center; margin-top: 8px; }
 
@@ -554,7 +655,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 <div class="dialog-overlay hidden" id="renameDialog">
     <div class="dialog-box">
         <h3>重命名讲稿</h3>
-        <input type="text" id="renameInput" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;outline:none;margin-bottom:16px;" placeholder="输入新名称">
+        <input type="text" id="renameInput" style="width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none;margin-bottom:16px;transition:border-color var(--transition),box-shadow var(--transition);" placeholder="输入新名称" onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(88,166,255,0.08)'" onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
         <div class="dialog-actions">
             <button class="btn" onclick="closeRenameDialog()">取消</button>
             <button class="btn primary" onclick="doRename()">确认</button>
@@ -599,7 +700,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         </div>
         <div class="remote-row">
             <button class="remote-btn" onclick="sendRemoteCmd('fontDown')" style="font-size:22px;">A−</button>
-            <button class="remote-btn" id="remotePlayBtn" onclick="sendRemoteCmd('togglePlay')">▶</button>
+            <button class="remote-btn" id="remotePlayBtn" onclick="sendRemoteCmd('togglePlay')">播放</button>
             <button class="remote-btn" onclick="sendRemoteCmd('fontUp')" style="font-size:22px;">A+</button>
         </div>
         <div class="remote-row">
@@ -614,7 +715,6 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 <div class="toolbar visible" id="toolbar">
     <div class="toolbar-group">
         <button class="btn primary" id="btnPlay" onclick="togglePlay()" title="播放/暂停">
-            <span style="font-size:16px;line-height:1;">▶</span>
             <span class="btn-label">播放</span>
         </button>
         <button class="btn" id="btnCountdown" onclick="startCountdown()" title="倒计时3秒后播放">
@@ -1564,12 +1664,34 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                 lastTouchEnd = now;
             }, { passive: false });
 
+            // 遥控端完整同步状态
+            var _remoteAnimId = null;
+            var _remoteAllLines = [];
+            var _remoteTargetScroll = 0;
+            var _remoteViewport = null;
+            function _remoteTick() {
+                if (!_remoteViewport) { _remoteAnimId = null; return; }
+                var current = _remoteViewport.scrollTop;
+                var diff = _remoteTargetScroll - current;
+                if (Math.abs(diff) < 0.5) {
+                    _remoteViewport.scrollTop = _remoteTargetScroll;
+                    _remoteAnimId = null;
+                    return;
+                }
+                _remoteViewport.scrollTop = current + diff * 0.35;
+                _remoteAnimId = requestAnimationFrame(_remoteTick);
+            }
+
+            function setRemoteStatus(text, cls) {
+                remoteStatus.textContent = text;
+                remoteStatus.className = 'remote-status' + (cls ? ' ' + cls : '');
+            }
             if (!room) {
-                remoteStatus.textContent = '缺少房间码';
+                setRemoteStatus('缺少房间码', 'error');
                 return true;
             }
 
-            remoteStatus.textContent = '正在连接房间 ' + room + ' ...';
+            setRemoteStatus('正在连接房间 ' + room + ' ...', 'connecting');
             try {
                 var wsUrl;
                 if (isPublicDeploy()) {
@@ -1581,7 +1703,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                 state.ws = ws;
                 ws.onopen = function() {
                     ws.send(JSON.stringify({ type: 'join', room: room }));
-                    remoteStatus.textContent = '已连接到房间 ' + room;
+                    setRemoteStatus('已连接到房间 ' + room);
                 };
                 ws.onmessage = function(e) {
                     try {
@@ -1589,36 +1711,68 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                         if (data.type === 'state') {
                             remoteSpeed.textContent = (data.speed || 1.0).toFixed(1) + 'x';
                             var playBtn = $('remotePlayBtn');
-                            if (data.playing && playBtn) playBtn.textContent = '\u2590\u258C';
-                            else if (playBtn) playBtn.textContent = '\u25B6';
+                            if (data.playing && playBtn) playBtn.textContent = '暂停';
+                            else if (playBtn) playBtn.textContent = '播放';
+                            if (!data.playing && _remoteAnimId) {
+                                cancelAnimationFrame(_remoteAnimId);
+                                _remoteAnimId = null;
+                            }
                         } else if (data.type === 'sync') {
                             remoteSpeed.textContent = (data.speed || 1.0).toFixed(1) + 'x';
                             var playBtn = $('remotePlayBtn');
-                            if (data.playing && playBtn) playBtn.textContent = '\u2590\u258C';
-                            else if (playBtn) playBtn.textContent = '\u25B6';
-                            if (data.currentLine !== undefined) {
-                                var ctx = data.contextLines || [];
+                            if (data.playing && playBtn) playBtn.textContent = '暂停';
+                            else if (playBtn) playBtn.textContent = '播放';
+
+                            var allLines = data.lines || [];
+                            var guideIdx = data.guideLine;
+                            var textArea = $('remoteTextArea');
+                            var viewport = $('remoteViewport');
+
+                            // 仅在内容变化时重建 DOM
+                            var contentChanged = allLines.length !== _remoteAllLines.length ||
+                                allLines.some(function(l, i) { return l !== _remoteAllLines[i]; });
+                            if (contentChanged) {
                                 var html = '';
-                                var curIdx = data.currentLine;
-                                for (var i = 0; i < ctx.length; i++) {
-                                    var cls = (i === curIdx) ? 'remote-text-line remote-text-current' : 'remote-text-line';
-                                    html += '<div class="' + cls + '">' + (ctx[i] || '&nbsp;') + '</div>';
+                                for (var i = 0; i < allLines.length; i++) {
+                                    var cls = (i === guideIdx) ? 'remote-text-line remote-text-current' : 'remote-text-line';
+                                    html += '<div class="' + cls + '">' + (allLines[i] || '&nbsp;') + '</div>';
                                 }
-                                $('remoteTextArea').innerHTML = html;
-                                var curEl = $('remoteTextArea').querySelector('.remote-text-current');
-                                if (curEl) curEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                                textArea.innerHTML = html;
+                                _remoteAllLines = allLines.slice();
+                            } else {
+                                var prevCur = textArea.querySelector('.remote-text-current');
+                                if (prevCur && textArea.children[guideIdx] !== prevCur) {
+                                    prevCur.classList.remove('remote-text-current');
+                                    if (textArea.children[guideIdx]) textArea.children[guideIdx].classList.add('remote-text-current');
+                                }
+                            }
+
+                            // 将引导行精确对齐到视口中心
+                            var guideEl = textArea.children[guideIdx];
+                            if (guideEl) {
+                                var vpRect = viewport.getBoundingClientRect();
+                                var elRect = guideEl.getBoundingClientRect();
+                                var vpCenter = vpRect.top + vpRect.height / 2;
+                                var elCenter = elRect.top + elRect.height / 2;
+                                _remoteTargetScroll = viewport.scrollTop + elCenter - vpCenter;
+                                _remoteViewport = viewport;
+                            }
+
+                            // 启动滚动动画
+                            if (!_remoteAnimId) {
+                                _remoteAnimId = requestAnimationFrame(_remoteTick);
                             }
                         }
                     } catch (ex) {}
                 };
                 ws.onerror = function() {
-                    remoteStatus.textContent = '连接失败';
+                    setRemoteStatus('连接失败', 'error');
                 };
                 ws.onclose = function() {
-                    remoteStatus.textContent = '连接已断开';
+                    setRemoteStatus('连接已断开', 'disconnected');
                 };
             } catch (e) {
-                remoteStatus.textContent = '连接失败';
+                setRemoteStatus('连接失败', 'error');
             }
             return true;
         }
@@ -1651,23 +1805,17 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 
         var scriptLines = (teleText.textContent || '').split('\n');
         var lineH = parseFloat(getComputedStyle(teleText).lineHeight) || (state.fontSize * state.lineHeight);
-        var curLineIdx = Math.round(state.scrollPos / lineH);
-        curLineIdx = Math.max(0, Math.min(scriptLines.length - 1, curLineIdx));
+        var viewportH = viewport.clientHeight;
+        var guideLinePos = state.scrollPos + viewportH / 2;
+        var guideLineIdx = Math.round(guideLinePos / lineH);
+        guideLineIdx = Math.max(0, Math.min(scriptLines.length - 1, guideLineIdx));
 
-        var ctxLines = [];
-        var contextCount = 6;
-        var start = Math.max(0, curLineIdx - contextCount);
-        var end = Math.min(scriptLines.length, curLineIdx + contextCount + 1);
-        for (var i = start; i < end; i++) {
-            ctxLines.push(scriptLines[i]);
-        }
-        var curInCtx = curLineIdx - start;
         state.ws.send(JSON.stringify({
             type: 'sync',
             playing: state.isPlaying,
             speed: state.speedMultiplier,
-            contextLines: ctxLines,
-            currentLine: curInCtx
+            lines: scriptLines,
+            guideLine: guideLineIdx
         }));
     }
 
@@ -1876,8 +2024,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         applyScroll();
         state.isPlaying = true;
         state.lastTime = performance.now();
-        btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u2590\u258C</span><span class="btn-label">暂停</span>';
-        btnPlay.classList.add('active');
+        btnPlay.innerHTML = '<span class="btn-label">暂停</span>';
         statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
         sendWSState(); sendWSSync();
         updateMaxScroll();
@@ -1889,8 +2036,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     function pause() {
         state.isPlaying = false;
         cancelAnimationFrame(state.rafId); state.rafId = null;
-        btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u25B6</span><span class="btn-label">播放</span>';
-        btnPlay.classList.remove('active');
+        btnPlay.innerHTML = '<span class="btn-label">播放</span>';
         statusText.textContent = '已暂停';
         sendWSState();
         estimateDuration();
@@ -2575,8 +2721,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         if (gesture.mode === 'idle' && gesture.wasPlaying && !state.isPlaying) {
             state.lastTime = performance.now();
             state.isPlaying = true;
-            btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u2590\u258C</span><span class="btn-label">暂停</span>';
-            btnPlay.classList.add('active');
+            btnPlay.innerHTML = '<span class="btn-label">暂停</span>';
             statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
             loop();
         }
