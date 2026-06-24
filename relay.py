@@ -5,6 +5,7 @@
 import asyncio
 import json
 import os
+import signal
 import threading
 
 PORT = int(os.environ.get("PORT", 10000))
@@ -15,6 +16,19 @@ rooms_lock = threading.Lock()
 
 async def ws_handler(websocket):
     current_room = None
+    alive = True
+
+    async def heartbeat():
+        """每 30 秒发送 ping 保持连接不中断"""
+        while alive:
+            await asyncio.sleep(30)
+            try:
+                await websocket.ping()
+            except Exception:
+                break
+
+    hb_task = asyncio.create_task(heartbeat())
+
     try:
         async for message in websocket:
             try:
@@ -51,9 +65,15 @@ async def ws_handler(websocket):
             elif data.get("type") == "state" and current_room:
                 await _broadcast(current_room, data, exclude=websocket)
 
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[WS] connection error: {type(e).__name__}: {e}")
     finally:
+        alive = False
+        hb_task.cancel()
+        try:
+            await hb_task
+        except asyncio.CancelledError:
+            pass
         if current_room:
             with rooms_lock:
                 if current_room in rooms:
@@ -85,7 +105,12 @@ async def _broadcast(room, message, exclude=None):
 
 async def main():
     import websockets
-    async with websockets.serve(ws_handler, "0.0.0.0", PORT):
+    async with websockets.serve(
+        ws_handler, "0.0.0.0", PORT,
+        ping_interval=25,
+        ping_timeout=15,
+        close_timeout=5
+    ):
         print(f"[WS] relay running on port {PORT}")
         await asyncio.Future()
 

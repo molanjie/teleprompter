@@ -1481,6 +1481,9 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         }
     }
 
+    window.sendRemoteCmd = sendRemoteCmd;
+    window.execRemoteCmd = execRemoteCmd;
+
     function execRemoteCmd(action) {
         switch (action) {
             case 'togglePlay': case 'play': case 'pause':
