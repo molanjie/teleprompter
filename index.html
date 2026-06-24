@@ -309,6 +309,22 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 .remote-panel .remote-btn:active { transform: scale(0.9); background: var(--accent); }
 .remote-panel .remote-row { display: flex; gap: 16px; align-items: center; }
 .remote-panel .remote-speed-label { font-size: 14px; color: var(--text); min-width: 50px; text-align: center; }
+.remote-text-area {
+    margin-top: 12px; padding: 10px 12px;
+    background: var(--bg-card); border-radius: 10px;
+    max-height: 160px; overflow-y: auto;
+    border: 1px solid var(--border);
+}
+.remote-text-line {
+    font-size: 13px; line-height: 1.8; color: var(--text-dim);
+    padding: 2px 0; border-radius: 4px;
+    white-space: pre-wrap; word-break: break-word;
+}
+.remote-text-line.remote-text-current {
+    color: var(--accent); font-weight: 600;
+    background: rgba(0,255,200,0.08); padding: 4px 6px;
+    font-size: 14px;
+}
 
 /* ===== 横屏/竖屏适配 ===== */
 @media (orientation: landscape) {
@@ -530,13 +546,16 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
     </div>
     <div class="remote-row">
         <button class="remote-btn" onclick="sendRemoteCmd('fontDown')" style="font-size:22px;">A−</button>
-        <button class="remote-btn" onclick="sendRemoteCmd('togglePlay')" style="font-size:36px;">▶</button>
+        <button class="remote-btn" id="remotePlayBtn" onclick="sendRemoteCmd('togglePlay')" style="font-size:36px;">▶</button>
         <button class="remote-btn" onclick="sendRemoteCmd('fontUp')" style="font-size:22px;">A+</button>
     </div>
     <div class="remote-row">
         <button class="remote-btn" onclick="sendRemoteCmd('prevLine')">▲</button>
         <button class="remote-btn" onclick="sendRemoteCmd('reset')" style="font-size:18px;">↻</button>
         <button class="remote-btn" onclick="sendRemoteCmd('nextLine')">▼</button>
+    </div>
+    <div class="remote-text-area" id="remoteTextArea">
+        <div class="remote-text-line remote-text-current" id="remoteTextLine">等待同步...</div>
     </div>
 </div>
 
@@ -1390,6 +1409,11 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                             closeQROverlay();
                         }
                         updateRemoteDot(data.count);
+                        // 推送当前状态和文本给新连入的遥控端
+                        if (data.count >= 2) {
+                            state._lastSync = 0;
+                            sendWSState(); sendWSSync();
+                        }
                     }
                 } catch (ex) {}
             };
@@ -1503,9 +1527,26 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                         var data = JSON.parse(e.data);
                         if (data.type === 'state') {
                             remoteSpeed.textContent = (data.speed || 1.0).toFixed(1) + 'x';
-                            var playBtn = remotePanel.querySelector('.remote-btn:nth-child(2)');
+                            var playBtn = $('remotePlayBtn');
                             if (data.playing && playBtn) playBtn.textContent = '\u23F8';
                             else if (playBtn) playBtn.textContent = '\u25B6';
+                        } else if (data.type === 'sync') {
+                            remoteSpeed.textContent = (data.speed || 1.0).toFixed(1) + 'x';
+                            var playBtn = $('remotePlayBtn');
+                            if (data.playing && playBtn) playBtn.textContent = '\u23F8';
+                            else if (playBtn) playBtn.textContent = '\u25B6';
+                            if (data.currentLine !== undefined) {
+                                var ctx = data.contextLines || [];
+                                var html = '';
+                                var curIdx = data.currentLine;
+                                for (var i = 0; i < ctx.length; i++) {
+                                    var cls = (i === curIdx) ? 'remote-text-line remote-text-current' : 'remote-text-line';
+                                    html += '<div class="' + cls + '">' + (ctx[i] || '&nbsp;') + '</div>';
+                                }
+                                $('remoteTextArea').innerHTML = html;
+                                var curEl = $('remoteTextArea').querySelector('.remote-text-current');
+                                if (curEl) curEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                            }
                         }
                     } catch (ex) {}
                 };
@@ -1529,6 +1570,45 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         }
     }
 
+    function sendWSState() {
+        if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+            state.ws.send(JSON.stringify({
+                type: 'state',
+                playing: state.isPlaying,
+                speed: state.speedMultiplier,
+                fontSize: state.fontSize
+            }));
+        }
+    }
+
+    function sendWSSync() {
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+        if (!state.maxScroll) return;
+        // 节流：最多每 300ms 发一次
+        var now = performance.now();
+        if (state._lastSync && now - state._lastSync < 300) return;
+        state._lastSync = now;
+        // 计算当前所在行
+        var lineH = state.fontSize * state.lineHeight;
+        var curLineIdx = Math.round(state.scrollPos / lineH);
+        var scriptLines = (teleText.textContent || '').split('\n');
+        var ctxLines = [];
+        var contextCount = 6; // 前后各6行
+        var start = Math.max(0, curLineIdx - contextCount);
+        var end = Math.min(scriptLines.length, curLineIdx + contextCount + 1);
+        for (var i = start; i < end; i++) {
+            ctxLines.push(scriptLines[i]);
+        }
+        var curInCtx = curLineIdx - start;
+        state.ws.send(JSON.stringify({
+            type: 'sync',
+            playing: state.isPlaying,
+            speed: state.speedMultiplier,
+            contextLines: ctxLines,
+            currentLine: curInCtx
+        }));
+    }
+
     window.sendRemoteCmd = sendRemoteCmd;
     window.execRemoteCmd = execRemoteCmd;
 
@@ -1540,12 +1620,12 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             case 'speedUp':
                 state.speedMultiplier = Math.min(3.0, +(state.speedMultiplier + 0.1).toFixed(1));
                 speedSlider.value = state.speedMultiplier;
-                updateSpeedDisplay(); saveSettings();
+                updateSpeedDisplay(); saveSettings(); sendWSState();
                 break;
             case 'speedDown':
                 state.speedMultiplier = Math.max(0.5, +(state.speedMultiplier - 0.1).toFixed(1));
                 speedSlider.value = state.speedMultiplier;
-                updateSpeedDisplay(); saveSettings();
+                updateSpeedDisplay(); saveSettings(); sendWSState();
                 break;
             case 'fontUp':
                 state.fontSize = Math.min(100, state.fontSize + 4);
@@ -1554,7 +1634,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                 teleText.style.fontSize = state.fontSize + 'px';
                 saveSettings(); updateMaxScroll();
                 if (state.scrollPos > state.maxScroll) state.scrollPos = state.maxScroll;
-                applyScroll();
+                applyScroll(); sendWSState();
                 break;
             case 'fontDown':
                 state.fontSize = Math.max(20, state.fontSize - 4);
@@ -1563,7 +1643,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
                 teleText.style.fontSize = state.fontSize + 'px';
                 saveSettings(); updateMaxScroll();
                 if (state.scrollPos > state.maxScroll) state.scrollPos = state.maxScroll;
-                applyScroll();
+                applyScroll(); sendWSState();
                 break;
             case 'prevLine':
                 state.scrollPos = Math.max(0, state.scrollPos - 200);
@@ -1737,6 +1817,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u23F8</span><span class="btn-label">暂停</span>';
         btnPlay.classList.add('active');
         statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
+        sendWSState(); sendWSSync();
         updateMaxScroll();
         estimateDuration();
         if (state.camEnabled && !state.camActive) startCamera();
@@ -1749,6 +1830,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         btnPlay.innerHTML = '<span style="font-size:16px;line-height:1;">\u25B6</span><span class="btn-label">播放</span>';
         btnPlay.classList.remove('active');
         statusText.textContent = '已暂停';
+        sendWSState();
         estimateDuration();
     }
 
@@ -1786,6 +1868,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         }
         applyScroll();
         updateCountdown();
+        sendWSSync();
         state.rafId = requestAnimationFrame(loop);
     }
 
@@ -1826,6 +1909,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 
         applyScroll();
         statusText.textContent = '已重置';
+        sendWSState();
         stopCamera();
     }
 
@@ -2089,6 +2173,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
             ? '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)'
             : '速度: ' + state.speedMultiplier.toFixed(1) + 'x';
         if (!state.isPlaying) estimateDuration();
+        sendWSState();
         resetToolbarTimer();
     }
 
@@ -2100,6 +2185,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         updateMaxScroll();
         if (state.scrollPos > state.maxScroll) state.scrollPos = state.maxScroll;
         applyScroll();
+        sendWSState();
         renderBookmarkIndicators();
         resetToolbarTimer();
     }
