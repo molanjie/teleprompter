@@ -1120,22 +1120,26 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         englishWords = Math.round(englishWords / 5);
         var totalUnits = chineseChars + englishWords;
         var seconds = Math.round(totalUnits * 0.25 / state.speedMultiplier);
-        var m = Math.floor(seconds / 60);
-        var s = seconds % 60;
-        durationText.textContent = '约 ' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+        if (seconds < 60) {
+            durationText.textContent = '约 ' + seconds + ' 秒';
+        } else {
+            var m = Math.floor(seconds / 60);
+            var s = seconds % 60;
+            durationText.textContent = '约 ' + m + ' 分 ' + s + ' 秒';
+        }
         return seconds;
     }
 
     function updateCountdown() {
         if (!state.isPlaying) return;
-        var elapsed = (state.scrollPos / (state.maxScroll || 1));
-        var total = estimateDuration();
-        var remaining = Math.max(0, Math.round(total * (1 - elapsed)));
-        var m = Math.floor(remaining / 60);
-        var s = remaining % 60;
-        var timeStr = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-        durationText.textContent = timeStr;
-        statusText.textContent = timeStr;
+        var remaining = Math.max(0, Math.round((state.maxScroll - state.scrollPos) / getSpeedPx()));
+        if (remaining < 60) {
+            durationText.textContent = '剩余 ' + remaining + ' 秒';
+        } else {
+            var m = Math.floor(remaining / 60);
+            var s = remaining % 60;
+            durationText.textContent = '剩余 ' + m + ' 分 ' + s + ' 秒';
+        }
     }
 
     // ========== 边缘遮罩 ==========
@@ -2019,6 +2023,7 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
         state.isPlaying = true;
         state.lastTime = performance.now();
         btnPlay.innerHTML = '<span class="btn-label">暂停</span>';
+        statusText.textContent = '播放中 (' + state.speedMultiplier.toFixed(1) + 'x)';
         sendWSState(); sendWSSync();
         updateMaxScroll();
         estimateDuration();
