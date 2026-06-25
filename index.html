@@ -206,6 +206,7 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-shadow: 0 0 1px rgba(255,255,255,0.08);
+    transition: opacity 0.15s ease;
 }
 .teleprompter-text.mirrored { transform: translateY(-50%) scaleX(-1) translateZ(0); }
 
@@ -379,24 +380,27 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 /* ===== 快捷提示 ===== */
 .shortcuts-hint {
     position: fixed; bottom: 20px; right: 20px;
-    background: rgba(22,27,34,0.94); border: 1px solid rgba(48,54,61,0.5); border-radius: var(--radius);
+    background: rgba(22,27,34,0.94); border: 1px solid rgba(88,166,255,0.08);
+    border-radius: var(--radius);
     padding: 13px 18px; font-size: 11px; color: var(--text-dim); z-index: 30;
     line-height: 2; pointer-events: none; max-width: 280px;
     backdrop-filter: blur(20px) saturate(150%);
     -webkit-backdrop-filter: blur(20px) saturate(150%);
-    box-shadow: 0 6px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(88,166,255,0.04);
-    transition: opacity 0.8s ease;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(88,166,255,0.06);
+    transition: opacity 0.8s ease, transform 0.5s ease;
 }
 .shortcuts-hint kbd {
     display: inline-block;
-    background: rgba(33,38,45,0.8);
-    border: 1px solid rgba(88,166,255,0.2);
-    border-radius: 4px;
-    padding: 1px 6px;
+    background: rgba(88,166,255,0.12);
+    border: 1px solid rgba(88,166,255,0.25);
+    border-radius: 5px;
+    padding: 2px 7px;
     font-size: 10.5px; font-family: inherit;
     color: var(--accent);
     margin: 0 1px;
     letter-spacing: 0.3px;
+    box-shadow: 0 1px 0 rgba(88,166,255,0.06), inset 0 1px 0 rgba(255,255,255,0.04);
+    font-weight: 600;
 }
 
 /* ===== 对话框覆盖层 ===== */
@@ -686,13 +690,14 @@ textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
 .cam-permission-overlay.hidden { display: none; }
 
 .cam-permission-dialog {
-    background: var(--surface); border: 1px solid rgba(48,54,61,0.6);
+    background: var(--surface); border: 1px solid rgba(88,166,255,0.12);
     border-radius: var(--radius); padding: 28px 24px; text-align: center;
     max-width: 340px; width: 90%;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.55), 0 0 40px rgba(88,166,255,0.06);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
 }
-.cam-permission-dialog h3 { font-size: 18px; margin-bottom: 12px; font-weight: 600; }
-.cam-permission-dialog p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; }
+.cam-permission-dialog h3 { font-size: 18px; margin-bottom: 12px; font-weight: 600; color: var(--text); }
+.cam-permission-dialog p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; opacity: 0.9; }
 
 /* ===== 语音识别状态 ===== */
 .voice-status-dot {
